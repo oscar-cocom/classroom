@@ -1,0 +1,32 @@
+[
+  {
+    "id": "amazon",
+    "name": "Equipo Amazon",
+    "repoName": "proyecto-amazon"
+  },
+  {
+    "id": "michoacana",
+    "name": "Equipo La Michoacana",
+    "repoName": "proyecto-michoacana"
+  },
+  {
+    "id": "playstation",
+    "name": "Equipo PlayStation",
+    "repoName": "proyecto-playstation"
+  },
+  {
+    "id": "telcel",
+    "name": "Equipo Telcel",
+    "repoName": "proyecto-telcel"
+  },
+  {
+    "id": "oxxo",
+    "name": "Equipo Oxxo",
+    "repoName": "proyecto-oxxo"
+  },
+  {
+    "id": "cinepolis",
+    "name": "Equipo Cinépolis",
+    "repoName": "proyecto-cinepolis"
+  }
+]
