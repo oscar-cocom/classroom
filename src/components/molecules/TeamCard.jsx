@@ -9,7 +9,7 @@ export function TeamCard({ team, progress = 0 }) {
   return (
     <Card 
       className="cursor-pointer hover:shadow-md transition-shadow"
-      onClick={() => navigate(`/team/${team.id}`)}
+      onClick={() => navigate(`/dashboard/team/${team.id}`)}
     >
       <CardHeader>
         <CardTitle className="text-xl flex justify-between items-center">
