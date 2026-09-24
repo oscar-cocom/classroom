@@ -250,5 +250,12 @@
     "repoName": "Tareas-Tenorio-Fabian",
     "teamId": "michoacana",
     "githubUsername": "Tenorio-Fabian"
+  },
+  {
+    "id": "std37",
+    "name": "Navarrete Escalante Armin",
+    "repoName": "tareas-navarrete-armin",
+    "teamId": "eq-pendiente",
+    "githubUsername": "navarrete-armin"
   }
 ]

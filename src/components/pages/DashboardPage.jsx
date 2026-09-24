@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { TeamCard } from '@/components/molecules/TeamCard';
 import teamsData from '@/data/teams.json';
-import { getTasks, migrateTasksToFirestore } from '@/services/firestoreApi';
+import { getTasks, migrateTasksToFirestore, deleteTask } from '@/services/firestoreApi';
 import { Button } from '@/components/ui/button';
-import { Plus } from 'lucide-react';
+import { Plus, Edit, Trash2 } from 'lucide-react';
 import { CreateTaskModal } from '@/components/organisms/CreateTaskModal';
 import { CodeBlock } from '@/components/atoms/CodeBlock';
 
@@ -11,6 +11,7 @@ export function DashboardPage() {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState(null);
 
   const loadTasks = async () => {
     setLoading(true);
@@ -23,6 +24,23 @@ export function DashboardPage() {
   useEffect(() => {
     loadTasks();
   }, []);
+
+  const handleEdit = (task) => {
+    setEditingTask(task);
+    setIsModalOpen(true);
+  };
+
+  const handleDelete = async (id) => {
+    if (confirm("¿Estás seguro de que deseas eliminar esta tarea permanentemente?")) {
+      await deleteTask(id);
+      loadTasks();
+    }
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setTimeout(() => setEditingTask(null), 200); // clear after animation
+  };
 
   return (
     <div className="container mx-auto p-4 md:p-8">
@@ -53,6 +71,7 @@ export function DashboardPage() {
                   <th className="px-6 py-3 font-semibold">Fecha Asignada</th>
                   <th className="px-6 py-3 font-semibold">Límite</th>
                   <th className="px-6 py-3 font-semibold text-center">Pts</th>
+                  <th className="px-6 py-3 font-semibold text-right">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -75,6 +94,16 @@ export function DashboardPage() {
                       {new Date(task.deadline).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' })}
                     </td>
                     <td className="px-6 py-4 text-center font-bold text-primary align-top">{task.maxScore}</td>
+                    <td className="px-6 py-4 align-top text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button variant="ghost" size="icon" onClick={() => handleEdit(task)} className="h-8 w-8 text-muted-foreground hover:text-foreground">
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => handleDelete(task.id)} className="h-8 w-8 text-muted-foreground hover:text-destructive">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -95,8 +124,9 @@ export function DashboardPage() {
 
       <CreateTaskModal 
         isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
-        onTaskCreated={loadTasks} 
+        onClose={handleCloseModal} 
+        onTaskCreated={loadTasks}
+        editingTask={editingTask}
       />
     </div>
   );

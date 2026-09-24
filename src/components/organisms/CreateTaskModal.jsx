@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { X } from 'lucide-react';
 import { saveTask } from '@/services/firestoreApi';
 
-export function CreateTaskModal({ isOpen, onClose, onTaskCreated }) {
+export function CreateTaskModal({ isOpen, onClose, onTaskCreated, editingTask }) {
   const [formData, setFormData] = useState({
     name: '',
     requirement: '',
@@ -16,6 +16,32 @@ export function CreateTaskModal({ isOpen, onClose, onTaskCreated }) {
   });
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    if (editingTask) {
+      setFormData({
+        name: editingTask.name || '',
+        requirement: editingTask.requirement || '',
+        sprint: editingTask.sprint || 1,
+        deadline: editingTask.deadline ? new Date(editingTask.deadline).toISOString().substring(0, 16) : '',
+        maxScore: editingTask.maxScore || 50,
+        keywords: editingTask.evaluation?.keywords?.join(', ') || '',
+        matchCount: editingTask.evaluation?.matchCount || 1,
+        template: editingTask.template || ''
+      });
+    } else {
+      setFormData({
+        name: '',
+        requirement: '',
+        sprint: 1,
+        deadline: '',
+        maxScore: 50,
+        keywords: '',
+        matchCount: 1,
+        template: ''
+      });
+    }
+  }, [editingTask, isOpen]);
+
   if (!isOpen) return null;
 
   const handleSubmit = async (e) => {
@@ -23,11 +49,11 @@ export function CreateTaskModal({ isOpen, onClose, onTaskCreated }) {
     setLoading(true);
     
     const newTask = {
-      id: `t${Date.now()}-sprint${formData.sprint}`,
+      id: editingTask ? editingTask.id : `t${Date.now()}-sprint${formData.sprint}`,
       sprint: parseInt(formData.sprint),
       name: formData.name,
       requirement: formData.requirement,
-      dateAssigned: new Date().toISOString(),
+      dateAssigned: editingTask ? editingTask.dateAssigned : new Date().toISOString(),
       deadline: new Date(formData.deadline).toISOString(),
       maxScore: parseInt(formData.maxScore),
       template: formData.template,
@@ -54,7 +80,7 @@ export function CreateTaskModal({ isOpen, onClose, onTaskCreated }) {
     <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
       <div className="bg-card text-card-foreground border rounded-lg shadow-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center p-6 border-b">
-          <h2 className="text-xl font-bold">Crear Nueva Tarea</h2>
+          <h2 className="text-xl font-bold">{editingTask ? 'Editar Tarea' : 'Crear Nueva Tarea'}</h2>
           <Button variant="ghost" size="icon" onClick={onClose}>
             <X className="h-4 w-4" />
           </Button>
@@ -108,7 +134,7 @@ export function CreateTaskModal({ isOpen, onClose, onTaskCreated }) {
 
           <div className="pt-4 flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
-            <Button type="submit" disabled={loading}>{loading ? 'Guardando...' : 'Guardar Tarea'}</Button>
+            <Button type="submit" disabled={loading}>{loading ? 'Guardando...' : editingTask ? 'Guardar Cambios' : 'Guardar Tarea'}</Button>
           </div>
         </form>
       </div>

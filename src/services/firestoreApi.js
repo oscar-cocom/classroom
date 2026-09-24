@@ -1,5 +1,5 @@
 import { db } from '@/lib/firebase';
-import { collection, getDocs, doc, setDoc, getDoc, updateDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, setDoc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 
 // References
 const STUDENTS_COL = collection(db, 'students');
@@ -22,6 +22,12 @@ export async function saveTask(taskData) {
   if (!db) return;
   const docRef = doc(TASKS_COL, taskData.id);
   await setDoc(docRef, taskData, { merge: true });
+}
+
+export async function deleteTask(id) {
+  if (!db) return;
+  const docRef = doc(TASKS_COL, id);
+  await deleteDoc(docRef);
 }
 
 export async function migrateTasksToFirestore() {

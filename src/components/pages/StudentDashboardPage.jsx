@@ -49,8 +49,11 @@ export function StudentDashboardPage() {
           const githubResult = await evaluateStudentTasks(student.repoName, fetchedTasks);
           setTaskMetrics(githubResult);
 
+          const totalMaxScore = fetchedTasks.reduce((sum, t) => sum + Number(t.maxScore), 0);
+          const taskPercentage = totalMaxScore > 0 ? Math.round((githubResult.totalScore / totalMaxScore) * 100) : 0;
+
           setGrades({ 
-            task: githubResult.totalScore || 0, 
+            task: taskPercentage, 
             project: '-', // Pendiente
             participation: autoParticipation 
           });
