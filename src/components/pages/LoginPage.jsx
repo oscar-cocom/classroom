@@ -25,10 +25,15 @@ export function LoginPage() {
     setError('');
     try {
       await loginWithGithub();
-      // The useEffect in AuthContext will update the user state and trigger the redirect above
     } catch (err) {
       console.error(err);
-      setError('Hubo un problema al iniciar sesión. ¿Agregaste las credenciales de Firebase?');
+      if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') {
+        setError('Cerraste la ventana de GitHub. Inténtalo de nuevo.');
+      } else if (err.code === 'auth/unauthorized-domain') {
+        setError('Este dominio no está autorizado. Contacta al profesor.');
+      } else {
+        setError('Hubo un problema al iniciar sesión. Inténtalo de nuevo.');
+      }
       setIsLoggingIn(false);
     }
   };
