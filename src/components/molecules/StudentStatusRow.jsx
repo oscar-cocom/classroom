@@ -3,21 +3,22 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { evaluateStudentTasks } from '@/services/githubApi';
 
-export function StudentStatusRow({ student, score, onScoreChange }) {
-  const [taskStatus, setTaskStatus] = useState({ loading: true, error: false, hasImage: false, hasButton: false, commitTime: null });
+export function StudentStatusRow({ student, score, onScoreChange, tasksList = [], currentSprint = 1 }) {
+  const [taskStatus, setTaskStatus] = useState({ loading: true, error: false, totalScore: 0, sprintScores: {}, commitTime: null });
 
   useEffect(() => {
     let mounted = true;
     async function checkGithub() {
-      if (!student.repoName) return;
+      if (!student.repoName || tasksList.length === 0) return;
       setTaskStatus(s => ({ ...s, loading: true }));
       
       try {
-        const result = await evaluateStudentTasks(student.repoName);
+        const result = await evaluateStudentTasks(student.repoName, tasksList);
         
         if (mounted) {
-          // Find the latest delivery date among all tasks
-          const latestCommit = Object.values(result.tasks)
+          // Find the latest delivery date among tasks for THIS sprint
+          const sprintTasks = Object.values(result.tasks).filter(t => t.taskInfo.sprint === currentSprint);
+          const latestCommit = sprintTasks
             .map(t => t.delivery.date)
             .filter(d => d)
             .sort((a, b) => b - a)[0] || null;
@@ -38,12 +39,14 @@ export function StudentStatusRow({ student, score, onScoreChange }) {
     }
     checkGithub();
     return () => { mounted = false; };
-  }, [student.repoName]);
+  }, [student.repoName, currentSprint, tasksList]);
 
   const formatDate = (dateObj) => {
     if (!dateObj) return "Sin commits";
     return dateObj.toLocaleString();
   };
+
+  const sprintScore = taskStatus.sprintScores[currentSprint] || 0;
 
   return (
     <div className="flex flex-col md:flex-row md:items-center justify-between p-4 border rounded-lg gap-4 bg-card text-card-foreground">
@@ -62,7 +65,7 @@ export function StudentStatusRow({ student, score, onScoreChange }) {
           <Badge variant="destructive">Error repo</Badge>
         ) : (
           <Badge variant="default" className="bg-primary/20 text-primary hover:bg-primary/30 border-0">
-            Total Tareas: {taskStatus.totalScore} pts
+            Tareas Sprint {currentSprint}: {sprintScore} pts
           </Badge>
         )}
       </div>

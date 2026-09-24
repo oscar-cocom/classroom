@@ -1,0 +1,42 @@
+[
+  {
+    "id": "t1-sprint1",
+    "sprint": 1,
+    "name": "Tarea 1: Imágenes",
+    "requirement": "Uso de etiqueta <img>",
+    "dateAssigned": "2026-09-01T10:00:00Z",
+    "deadline": "2026-09-08T23:59:59Z",
+    "maxScore": 50,
+    "evaluation": {
+      "strategy": "keyword",
+      "keywords": ["<img"],
+      "matchCount": 1
+    }
+  },
+  {
+    "id": "t2-sprint1",
+    "sprint": 1,
+    "name": "Tarea 2: Formulario",
+    "requirement": "Uso de <form> y 2 <button>",
+    "dateAssigned": "2026-09-01T10:00:00Z",
+    "deadline": "2026-09-08T23:59:59Z",
+    "maxScore": 50,
+    "evaluation": {
+      "strategy": "custom_form_buttons"
+    }
+  },
+  {
+    "id": "t1-sprint2",
+    "sprint": 2,
+    "name": "Tarea 1: Eventos Simples (T2-SPRING#2)",
+    "requirement": "Agrega un evento ondblclick a la tarjeta",
+    "dateAssigned": "2026-09-24T10:00:00Z",
+    "deadline": "2026-10-01T23:59:59Z",
+    "maxScore": 50,
+    "evaluation": {
+      "strategy": "keyword",
+      "keywords": ["ondblclick", "addEventListener", "dblclick", "display", "none", "hidden"],
+      "matchCount": 2
+    }
+  }
+]

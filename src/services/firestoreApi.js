@@ -5,6 +5,36 @@ import { collection, getDocs, doc, setDoc, getDoc, updateDoc } from 'firebase/fi
 const STUDENTS_COL = collection(db, 'students');
 const GRADES_COL = collection(db, 'grades');
 const ATTENDANCE_COL = collection(db, 'attendance');
+const TASKS_COL = collection(db, 'tasks');
+
+import tasksData from '@/data/tasks.json';
+
+/**
+ * TASKS
+ */
+export async function getTasks() {
+  if (!db) return [];
+  const snapshot = await getDocs(TASKS_COL);
+  return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+
+export async function saveTask(taskData) {
+  if (!db) return;
+  const docRef = doc(TASKS_COL, taskData.id);
+  await setDoc(docRef, taskData, { merge: true });
+}
+
+export async function migrateTasksToFirestore() {
+  if (!db) return;
+  const existingTasks = await getTasks();
+  if (existingTasks.length === 0) {
+    console.log("Migrating tasks.json to Firestore...");
+    for (const t of tasksData) {
+      await saveTask(t);
+    }
+    console.log("Tasks migrated successfully.");
+  }
+}
 
 /**
  * MIGRATION HELPER:

@@ -21,8 +21,15 @@ export function TeamEvaluationPage() {
 
   const [teamGrades, setTeamGrades] = useState({});
   const [studentScores, setStudentScores] = useState({});
+  const [tasksList, setTasksList] = useState([]);
 
   useEffect(() => {
+    async function loadTasks() {
+      const { getTasks } = await import('@/services/firestoreApi');
+      const fetched = await getTasks();
+      setTasksList(fetched);
+    }
+    loadTasks();
     // Here we would setup a Firebase listener for the team's grades
     // const unsub = onSnapshot(doc(db, "evaluations", teamId), (doc) => {
     //   if (doc.exists()) {
@@ -80,6 +87,7 @@ export function TeamEvaluationPage() {
                 student={student} 
                 score={studentScores[student.id]}
                 onScoreChange={handleScoreChange}
+                tasksList={tasksList}
               />
             ))
           )}

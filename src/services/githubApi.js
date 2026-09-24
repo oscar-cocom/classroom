@@ -1,5 +1,3 @@
-import tasksData from '@/data/tasks.json';
-
 const GITHUB_TOKEN = import.meta.env.VITE_GITHUB_TOKEN;
 const ORG_NAME = import.meta.env.VITE_GITHUB_ORG || "classroom-programacion-web";
 
@@ -67,7 +65,7 @@ function getTaskDeliveryStatus(commits, deadlineStr) {
   return { status: "late", date: new Date(commits[0].commit.committer.date) };
 }
 
-export async function evaluateStudentTasks(repoName) {
+export async function evaluateStudentTasks(repoName, tasksList = []) {
   const result = {
     tasks: {}, // Evaluated tasks
     totalScore: 0,
@@ -95,7 +93,7 @@ export async function evaluateStudentTasks(repoName) {
       fileContents.push({ path: file.path, content: content.toLowerCase() });
     }
 
-    for (const task of tasksData) {
+    for (const task of tasksList) {
       let taskScore = 0;
       let completed = false;
       const delivery = getTaskDeliveryStatus(commits, task.deadline);

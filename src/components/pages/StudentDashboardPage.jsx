@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { getStudentAttendance, getStudentGrades } from '@/services/firestoreApi';
+import { getStudentAttendance, getStudentGrades, getTasks } from '@/services/firestoreApi';
 import { evaluateStudentTasks } from '@/services/githubApi';
 import { BookOpen, CalendarX2, CheckCircle2, Trophy, Clock, XCircle, AlertTriangle } from 'lucide-react';
 import studentsData from '@/data/students.json';
@@ -40,8 +40,11 @@ export function StudentDashboardPage() {
           if (totalAbsences === 2) autoParticipation = 50; // 2 absences = 50%
           if (totalAbsences >= 3) autoParticipation = 0; // 3 or more absences = 0%
           
+          // Fetch tasks from Firestore
+          const fetchedTasks = await getTasks();
+
           // Evaluate tasks from GitHub
-          const githubResult = await evaluateStudentTasks(student.repoName);
+          const githubResult = await evaluateStudentTasks(student.repoName, fetchedTasks);
           setTaskMetrics(githubResult);
 
           setGrades({ 
