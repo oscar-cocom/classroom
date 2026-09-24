@@ -55,44 +55,85 @@ export async function getFileContent(blobUrl) {
   }
 }
 
-/**
- * Check if the student's task 1 is complete.
- * Rules: Must have an image (<img>) and a button (<button>).
- */
-export async function verifyTaskOne(repoName) {
+const DEADLINE = new Date('2026-09-08T23:59:59Z');
+
+export async function getDeliveryInfo(repoName) {
+  try {
+    const resOnTime = await fetch(`https://api.github.com/repos/${ORG_NAME}/${repoName}/commits?until=${DEADLINE.toISOString()}&per_page=1`, { headers });
+    if (!resOnTime.ok) return { status: "missing", date: null };
+    const dataOnTime = await resOnTime.json();
+    
+    if (dataOnTime.length > 0) {
+      return { status: "on_time", date: new Date(dataOnTime[0].commit.committer.date) };
+    }
+    
+    const resLate = await fetch(`https://api.github.com/repos/${ORG_NAME}/${repoName}/commits?since=${DEADLINE.toISOString()}`, { headers });
+    const dataLate = await resLate.json();
+    
+    if (dataLate.length > 0) {
+      return { status: "late", date: new Date(dataLate[dataLate.length - 1].commit.committer.date) };
+    }
+    
+    return { status: "missing", date: null };
+  } catch (err) {
+    return { status: "error", date: null };
+  }
+}
+
+export async function evaluateStudentTasks(repoName) {
   const result = {
-    hasImage: false,
-    hasButton: false,
-    checked: false,
+    delivery: { status: "missing", date: null },
+    task1: { completed: false, score: 0 },
+    task2: { status: "missing", score: 0 },
+    totalScore: 0,
     error: false,
   };
 
   try {
+    result.delivery = await getDeliveryInfo(repoName);
     const tree = await getRepoTree(repoName);
+    
     if (!tree.length) {
       result.error = true;
       return result;
     }
 
-    // Look for HTML files
     const htmlFiles = tree.filter(file => file.path.endsWith('.html'));
 
     for (const file of htmlFiles) {
       const content = await getFileContent(file.url);
-      if (content.toLowerCase().includes("<img")) {
-        result.hasImage = true;
-      }
-      if (content.toLowerCase().includes("<button")) {
-        result.hasButton = true;
-      }
-
-      // If we found both, no need to keep checking other HTML files
-      if (result.hasImage && result.hasButton) {
-        break;
+      const lower = content.toLowerCase();
+      
+      if (lower.includes("<img")) result.task1.completed = true;
+      
+      const buttonMatches = lower.match(/<button/g);
+      const buttonCount = buttonMatches ? buttonMatches.length : 0;
+      
+      if (lower.includes("<form")) {
+        if (buttonCount >= 2) {
+          result.task2.status = "complete";
+        } else if (buttonCount === 1) {
+          // Si ya estaba en complete por otro archivo, no lo bajamos a partial
+          if (result.task2.status !== "complete") {
+             result.task2.status = "partial";
+          }
+        }
       }
     }
+
+    let maxPerTask = result.delivery.status === "on_time" ? 50 : 
+                     result.delivery.status === "late" ? 40 : 0;
+                     
+    if (result.task1.completed) result.task1.score = maxPerTask;
     
-    result.checked = true;
+    if (result.task2.status === "complete") {
+      result.task2.score = maxPerTask;
+    } else if (result.task2.status === "partial") {
+      result.task2.score = maxPerTask / 2;
+    }
+    
+    result.totalScore = result.task1.score + result.task2.score;
+
   } catch (error) {
     console.error("Error verifying task:", error);
     result.error = true;

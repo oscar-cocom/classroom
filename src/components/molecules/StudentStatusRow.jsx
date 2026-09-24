@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { verifyTaskOne, getLatestCommitTime } from '@/services/githubApi';
+import { evaluateStudentTasks } from '@/services/githubApi';
 
 export function StudentStatusRow({ student, score, onScoreChange }) {
   const [taskStatus, setTaskStatus] = useState({ loading: true, error: false, hasImage: false, hasButton: false, commitTime: null });
@@ -12,16 +12,15 @@ export function StudentStatusRow({ student, score, onScoreChange }) {
       if (!student.repoName) return;
       setTaskStatus(s => ({ ...s, loading: true }));
       
-      const commitTime = await getLatestCommitTime(student.repoName);
-      const result = await verifyTaskOne(student.repoName);
+      const result = await evaluateStudentTasks(student.repoName);
       
       if (mounted) {
         setTaskStatus({
           loading: false,
-          error: result.error,
-          hasImage: result.hasImage,
-          hasButton: result.hasButton,
-          commitTime
+          error: result.delivery.status === "error",
+          hasImage: result.task1,
+          hasButton: result.task2,
+          commitTime: result.delivery.date
         });
       }
     }
@@ -29,9 +28,9 @@ export function StudentStatusRow({ student, score, onScoreChange }) {
     return () => { mounted = false; };
   }, [student.repoName]);
 
-  const formatDate = (dateStr) => {
-    if (!dateStr) return "Sin commits";
-    return new Date(dateStr).toLocaleString();
+  const formatDate = (dateObj) => {
+    if (!dateObj) return "Sin commits";
+    return dateObj.toLocaleString();
   };
 
   return (
@@ -55,7 +54,7 @@ export function StudentStatusRow({ student, score, onScoreChange }) {
               {taskStatus.hasImage ? "✅ Imagen" : "❌ Imagen"}
             </Badge>
             <Badge variant={taskStatus.hasButton ? "default" : "secondary"}>
-              {taskStatus.hasButton ? "✅ Botón" : "❌ Botón"}
+              {taskStatus.hasButton ? "✅ Formulario" : "❌ Formulario"}
             </Badge>
           </>
         )}

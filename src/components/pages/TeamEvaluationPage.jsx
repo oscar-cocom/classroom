@@ -72,7 +72,7 @@ export function TeamEvaluationPage() {
         <h2 className="text-xl font-semibold mb-4">Evaluación Individual</h2>
         <div className="space-y-4">
           {teamStudents.length === 0 ? (
-            <p className="text-muted-foreground italic">No hay alumnos asignados a este equipo.</p>
+            <p className="text-red-500 italic font-medium">No hay alumnos asignados a este equipo.</p>
           ) : (
             teamStudents.map(student => (
               <StudentStatusRow 

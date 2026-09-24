@@ -2,31 +2,41 @@
   {
     "id": "amazon",
     "name": "Equipo Amazon",
-    "repoName": "proyecto-amazon"
+    "repoName": "proyecto-equipo-amazon"
   },
   {
     "id": "michoacana",
     "name": "Equipo La Michoacana",
-    "repoName": "proyecto-michoacana"
+    "repoName": "proyecto-equipo-michoacana"
   },
   {
     "id": "playstation",
     "name": "Equipo PlayStation",
-    "repoName": "proyecto-playstation"
+    "repoName": "proyecto-equipo-playstation"
   },
   {
-    "id": "telcel",
-    "name": "Equipo Telcel",
-    "repoName": "proyecto-telcel"
+    "id": "steam",
+    "name": "Equipo Steam",
+    "repoName": "proyecto-equipo-steam"
   },
   {
-    "id": "oxxo",
-    "name": "Equipo Oxxo",
-    "repoName": "proyecto-oxxo"
+    "id": "samsung",
+    "name": "Equipo Samsung",
+    "repoName": "proyecto-equipo-samsung"
   },
   {
-    "id": "cinepolis",
-    "name": "Equipo Cinépolis",
-    "repoName": "proyecto-cinepolis"
+    "id": "steren",
+    "name": "Equipo Steren",
+    "repoName": "proyecto-equipo-steren"
+  },
+  {
+    "id": "nintendo",
+    "name": "Equipo Nintendo",
+    "repoName": "proyecto-equipo-nintendo"
+  },
+  {
+    "id": "mercadolibre",
+    "name": "Equipo Mercado Libre",
+    "repoName": "proyecto-equipo-mercadolibre"
   }
 ]
