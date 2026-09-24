@@ -12,16 +12,28 @@ export function StudentStatusRow({ student, score, onScoreChange }) {
       if (!student.repoName) return;
       setTaskStatus(s => ({ ...s, loading: true }));
       
-      const result = await evaluateStudentTasks(student.repoName);
-      
-      if (mounted) {
-        setTaskStatus({
-          loading: false,
-          error: result.delivery.status === "error",
-          hasImage: result.task1,
-          hasButton: result.task2,
-          commitTime: result.delivery.date
-        });
+      try {
+        const result = await evaluateStudentTasks(student.repoName);
+        
+        if (mounted) {
+          // Find the latest delivery date among all tasks
+          const latestCommit = Object.values(result.tasks)
+            .map(t => t.delivery.date)
+            .filter(d => d)
+            .sort((a, b) => b - a)[0] || null;
+
+          setTaskStatus({
+            loading: false,
+            error: result.error,
+            totalScore: result.totalScore,
+            sprintScores: result.sprintScores,
+            commitTime: latestCommit
+          });
+        }
+      } catch (err) {
+        if (mounted) {
+          setTaskStatus({ loading: false, error: true });
+        }
       }
     }
     checkGithub();
@@ -49,14 +61,9 @@ export function StudentStatusRow({ student, score, onScoreChange }) {
         ) : taskStatus.error ? (
           <Badge variant="destructive">Error repo</Badge>
         ) : (
-          <>
-            <Badge variant={taskStatus.hasImage ? "default" : "secondary"}>
-              {taskStatus.hasImage ? "✅ Imagen" : "❌ Imagen"}
-            </Badge>
-            <Badge variant={taskStatus.hasButton ? "default" : "secondary"}>
-              {taskStatus.hasButton ? "✅ Formulario" : "❌ Formulario"}
-            </Badge>
-          </>
+          <Badge variant="default" className="bg-primary/20 text-primary hover:bg-primary/30 border-0">
+            Total Tareas: {taskStatus.totalScore} pts
+          </Badge>
         )}
       </div>
 
