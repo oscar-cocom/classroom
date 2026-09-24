@@ -6,7 +6,6 @@ import { getStudentAttendance, getStudentGrades, getTasks } from '@/services/fir
 import { evaluateStudentTasks } from '@/services/githubApi';
 import { BookOpen, CalendarX2, CheckCircle2, Trophy, Clock, XCircle, AlertTriangle } from 'lucide-react';
 import studentsData from '@/data/students.json';
-import datesData from '@/data/dates.json';
 
 export function StudentDashboardPage() {
   const { user } = useAuth();
@@ -32,27 +31,19 @@ export function StudentDashboardPage() {
 
           // Get attendance
           const att = await getStudentAttendance(student.id);
-          
-          const currentPeriod = datesData.periods[datesData.currentPeriod];
-          const periodStart = new Date(currentPeriod.startDate);
-          const periodEnd = new Date(currentPeriod.endDate);
-          
-          const periodAtt = att.filter(a => {
-            const d = new Date(a.date);
-            return d >= periodStart && d <= periodEnd;
-          });
-
-          setTotalClasses(periodAtt.length);
-          const totalAbsences = periodAtt.filter(a => !a.isPresent).length;
+          setTotalClasses(att.length);
+          const totalAbsences = att.filter(a => !a.isPresent).length;
           setAbsences(totalAbsences);
 
-          // Calculate participation automatically based on absences in the current period
+          // Calculate participation automatically based on absences
           let autoParticipation = 100; // 0 to 1 absences = 100%
           if (totalAbsences === 2) autoParticipation = 50; // 2 absences = 50%
-          if (totalAbsences >= currentPeriod.maxAbsences) autoParticipation = 0; // limit reached = 0%
+          if (totalAbsences >= 3) autoParticipation = 0; // 3 or more absences = 0%
           
           // Fetch tasks from Firestore
-          const fetchedTasks = await getTasks();
+          const allTasks = await getTasks();
+          // Filter to only show Sprint 1 to students for now
+          const fetchedTasks = allTasks.filter(t => t.sprint === 1);
 
           // Evaluate tasks from GitHub
           const githubResult = await evaluateStudentTasks(student.repoName, fetchedTasks);
