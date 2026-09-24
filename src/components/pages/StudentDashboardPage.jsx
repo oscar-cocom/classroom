@@ -260,63 +260,62 @@ export function StudentDashboardPage() {
       </div>
 
       {/* MÉTRICAS DE COMMITS */}
-      {taskMetrics && (
+      {taskMetrics && !taskMetrics.error && (
         <>
-          <h2 className="text-xl font-bold mt-8 mb-4 flex items-center gap-2">
-            <BookOpen className="w-5 h-5 text-primary" />
-            Métricas de Commits - Sprint 1
-          </h2>
-          <Card>
-            <CardContent className="p-0">
-              <table className="w-full text-sm text-left">
-                <thead className="text-xs uppercase bg-muted/50 border-b">
-                  <tr>
-                    <th className="px-6 py-3">Actividad</th>
-                    <th className="px-6 py-3">Requisito</th>
-                    <th className="px-6 py-3 text-center">Último Commit</th>
-                    <th className="px-6 py-3 text-center">Estado (Límite: 8 Sep)</th>
-                    <th className="px-6 py-3 text-center">Puntaje</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr className="border-b last:border-0 hover:bg-muted/30">
-                    <td className="px-6 py-4 font-medium">Tarea 1: Imágenes</td>
-                    <td className="px-6 py-4 text-muted-foreground">Uso de etiqueta &lt;img&gt;</td>
-                    <td className="px-6 py-4 text-center font-mono text-xs">
-                      {formatDate(taskMetrics.delivery.date)}
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      {taskMetrics.task1.completed ? renderDeliveryBadge(taskMetrics.delivery.status) : <Badge variant="destructive">Incompleto</Badge>}
-                    </td>
-                    <td className="px-6 py-4 text-center font-bold">
-                      {taskMetrics.task1.score} <span className="text-muted-foreground font-normal">/ 50</span>
-                    </td>
-                  </tr>
-                  <tr className="border-b last:border-0 hover:bg-muted/30">
-                    <td className="px-6 py-4 font-medium">Tarea 2: Formulario</td>
-                    <td className="px-6 py-4 text-muted-foreground">Uso de &lt;form&gt; y 2 &lt;button&gt;</td>
-                    <td className="px-6 py-4 text-center font-mono text-xs">
-                      {formatDate(taskMetrics.delivery.date)}
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      {taskMetrics.task2.status === "complete" 
-                        ? renderDeliveryBadge(taskMetrics.delivery.status) 
-                        : taskMetrics.task2.status === "partial"
-                        ? <Badge variant="secondary">Parcial (1 botón)</Badge>
-                        : <Badge variant="destructive">Incompleto</Badge>}
-                    </td>
-                    <td className="px-6 py-4 text-center font-bold">
-                      {taskMetrics.task2.score} <span className="text-muted-foreground font-normal">/ 50</span>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-              <div className="p-4 bg-muted/20 border-t flex justify-end gap-4 items-center">
-                <span className="text-sm text-muted-foreground">Total Tareas Sprint 1:</span>
-                <span className="text-2xl font-bold text-primary">{taskMetrics.totalScore} / 100</span>
-              </div>
-            </CardContent>
-          </Card>
+          {Object.entries(
+            Object.values(taskMetrics.tasks).reduce((acc, t) => {
+              if (!acc[t.taskInfo.sprint]) acc[t.taskInfo.sprint] = [];
+              acc[t.taskInfo.sprint].push(t);
+              return acc;
+            }, {})
+          ).map(([sprint, tasks]) => (
+            <div key={`sprint-${sprint}`} className="mb-8">
+              <h2 className="text-xl font-bold mt-8 mb-4 flex items-center gap-2">
+                <BookOpen className="w-5 h-5 text-primary" />
+                Métricas de Tareas - Sprint {sprint}
+              </h2>
+              <Card>
+                <CardContent className="p-0">
+                  <table className="w-full text-sm text-left">
+                    <thead className="text-xs uppercase bg-muted/50 border-b">
+                      <tr>
+                        <th className="px-6 py-3">Actividad</th>
+                        <th className="px-6 py-3">Requisito</th>
+                        <th className="px-6 py-3 text-center">Último Commit</th>
+                        <th className="px-6 py-3 text-center">Estado</th>
+                        <th className="px-6 py-3 text-center">Puntaje</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {tasks.map((t) => (
+                        <tr key={t.taskInfo.id} className="border-b last:border-0 hover:bg-muted/30">
+                          <td className="px-6 py-4 font-medium">{t.taskInfo.name}</td>
+                          <td className="px-6 py-4 text-muted-foreground">{t.taskInfo.requirement}</td>
+                          <td className="px-6 py-4 text-center font-mono text-xs">
+                            {formatDate(t.delivery.date)}
+                          </td>
+                          <td className="px-6 py-4 text-center">
+                            {t.completed 
+                              ? renderDeliveryBadge(t.delivery.status) 
+                              : (t.score > 0 ? <Badge variant="secondary">Parcial</Badge> : <Badge variant="destructive">Incompleto</Badge>)}
+                          </td>
+                          <td className="px-6 py-4 text-center font-bold">
+                            {t.score} <span className="text-muted-foreground font-normal">/ {t.taskInfo.maxScore}</span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <div className="p-4 bg-muted/20 border-t flex justify-end gap-4 items-center">
+                    <span className="text-sm text-muted-foreground">Total Sprint {sprint}:</span>
+                    <span className="text-2xl font-bold text-primary">
+                      {tasks.reduce((sum, t) => sum + t.score, 0)} / {tasks.reduce((sum, t) => sum + t.taskInfo.maxScore, 0)}
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          ))}
         </>
       )}
     </div>

@@ -1,3 +1,5 @@
+import tasksData from '@/data/tasks.json';
+
 const GITHUB_TOKEN = import.meta.env.VITE_GITHUB_TOKEN;
 const ORG_NAME = import.meta.env.VITE_GITHUB_ORG || "classroom-programacion-web";
 
@@ -5,24 +7,6 @@ const headers = {
   Accept: "application/vnd.github.v3+json",
   ...(GITHUB_TOKEN && { Authorization: `Bearer ${GITHUB_TOKEN}` }),
 };
-
-/**
- * Fetch the latest commit time for a specific repository.
- */
-export async function getLatestCommitTime(repoName) {
-  try {
-    const res = await fetch(`https://api.github.com/repos/${ORG_NAME}/${repoName}/commits?per_page=1`, { headers });
-    if (!res.ok) throw new Error("Repo not found or no access");
-    const data = await res.json();
-    if (data.length > 0) {
-      return data[0].commit.committer.date;
-    }
-    return null;
-  } catch (error) {
-    console.error(`Error fetching commits for ${repoName}:`, error);
-    return null;
-  }
-}
 
 /**
  * Fetch the file tree of the default branch recursively.
@@ -55,42 +39,44 @@ export async function getFileContent(blobUrl) {
   }
 }
 
-const DEADLINE = new Date('2026-09-08T23:59:59Z');
-
-export async function getDeliveryInfo(repoName) {
+/**
+ * We fetch all commits once to evaluate deadlines locally
+ */
+export async function getRepoCommits(repoName) {
   try {
-    const resOnTime = await fetch(`https://api.github.com/repos/${ORG_NAME}/${repoName}/commits?until=${DEADLINE.toISOString()}&per_page=1`, { headers });
-    if (!resOnTime.ok) return { status: "missing", date: null };
-    const dataOnTime = await resOnTime.json();
-    
-    if (dataOnTime.length > 0) {
-      return { status: "on_time", date: new Date(dataOnTime[0].commit.committer.date) };
-    }
-    
-    const resLate = await fetch(`https://api.github.com/repos/${ORG_NAME}/${repoName}/commits?since=${DEADLINE.toISOString()}`, { headers });
-    const dataLate = await resLate.json();
-    
-    if (dataLate.length > 0) {
-      return { status: "late", date: new Date(dataLate[dataLate.length - 1].commit.committer.date) };
-    }
-    
-    return { status: "missing", date: null };
+    const res = await fetch(`https://api.github.com/repos/${ORG_NAME}/${repoName}/commits?per_page=100`, { headers });
+    if (!res.ok) return [];
+    return await res.json();
   } catch (err) {
-    return { status: "error", date: null };
+    return [];
   }
+}
+
+function getTaskDeliveryStatus(commits, deadlineStr) {
+  if (!commits.length) return { status: "missing", date: null };
+  const deadline = new Date(deadlineStr);
+  
+  // commits are ordered latest first. Find the first commit that is ON OR BEFORE the deadline.
+  const onTimeCommit = commits.find(c => new Date(c.commit.committer.date) <= deadline);
+  
+  if (onTimeCommit) {
+    return { status: "on_time", date: new Date(onTimeCommit.commit.committer.date) };
+  }
+  
+  // All commits are AFTER the deadline -> late
+  return { status: "late", date: new Date(commits[0].commit.committer.date) };
 }
 
 export async function evaluateStudentTasks(repoName) {
   const result = {
-    delivery: { status: "missing", date: null },
-    task1: { completed: false, score: 0 },
-    task2: { status: "missing", score: 0 },
+    tasks: {}, // Evaluated tasks
     totalScore: 0,
+    sprintScores: {},
     error: false,
   };
 
   try {
-    result.delivery = await getDeliveryInfo(repoName);
+    const commits = await getRepoCommits(repoName);
     const tree = await getRepoTree(repoName);
     
     if (!tree.length) {
@@ -98,41 +84,74 @@ export async function evaluateStudentTasks(repoName) {
       return result;
     }
 
-    const htmlFiles = tree.filter(file => file.path.endsWith('.html'));
-
-    for (const file of htmlFiles) {
+    // Pre-fetch all html/js files to avoid multiple network calls per task
+    const codeFiles = tree.filter(file => 
+      file.path.endsWith('.html') || file.path.endsWith('.js')
+    );
+    
+    const fileContents = [];
+    for (const file of codeFiles) {
       const content = await getFileContent(file.url);
-      const lower = content.toLowerCase();
+      fileContents.push({ path: file.path, content: content.toLowerCase() });
+    }
+
+    for (const task of tasksData) {
+      let taskScore = 0;
+      let completed = false;
+      const delivery = getTaskDeliveryStatus(commits, task.deadline);
       
-      if (lower.includes("<img")) result.task1.completed = true;
-      
-      const buttonMatches = lower.match(/<button/g);
-      const buttonCount = buttonMatches ? buttonMatches.length : 0;
-      
-      if (lower.includes("<form")) {
-        if (buttonCount >= 2) {
-          result.task2.status = "complete";
-        } else if (buttonCount === 1) {
-          // Si ya estaba en complete por otro archivo, no lo bajamos a partial
-          if (result.task2.status !== "complete") {
-             result.task2.status = "partial";
+      let maxScoreForTask = delivery.status === "on_time" ? task.maxScore : 
+                            delivery.status === "late" ? task.maxScore * 0.8 : 0; // 80% if late
+
+      if (delivery.status !== "missing") {
+        if (task.evaluation.strategy === "keyword") {
+          let totalMatches = 0;
+          for (const keyword of task.evaluation.keywords) {
+            const found = fileContents.some(f => f.content.includes(keyword.toLowerCase()));
+            if (found) totalMatches++;
+          }
+          
+          if (totalMatches >= task.evaluation.matchCount) {
+            completed = true;
+            taskScore = maxScoreForTask;
+          }
+        } 
+        else if (task.evaluation.strategy === "custom_form_buttons") {
+          // Backward compatibility for Tarea 2 Sprint 1
+          let hasForm = false;
+          let maxButtons = 0;
+          
+          for (const f of fileContents) {
+            if (f.content.includes("<form")) hasForm = true;
+            const buttonMatches = f.content.match(/<button/g);
+            if (buttonMatches && buttonMatches.length > maxButtons) {
+               maxButtons = buttonMatches.length;
+            }
+          }
+          
+          if (hasForm) {
+            if (maxButtons >= 2) {
+              completed = true;
+              taskScore = maxScoreForTask;
+            } else if (maxButtons === 1) {
+              completed = true;
+              taskScore = maxScoreForTask / 2;
+            }
           }
         }
       }
-    }
 
-    let maxPerTask = result.delivery.status === "on_time" ? 50 : 
-                     result.delivery.status === "late" ? 40 : 0;
-                     
-    if (result.task1.completed) result.task1.score = maxPerTask;
-    
-    if (result.task2.status === "complete") {
-      result.task2.score = maxPerTask;
-    } else if (result.task2.status === "partial") {
-      result.task2.score = maxPerTask / 2;
+      result.tasks[task.id] = {
+        taskInfo: task,
+        delivery,
+        completed,
+        score: taskScore,
+      };
+      
+      if (!result.sprintScores[task.sprint]) result.sprintScores[task.sprint] = 0;
+      result.sprintScores[task.sprint] += taskScore;
+      result.totalScore += taskScore;
     }
-    
-    result.totalScore = result.task1.score + result.task2.score;
 
   } catch (error) {
     console.error("Error verifying task:", error);
