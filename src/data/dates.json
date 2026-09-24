@@ -1,0 +1,23 @@
+{
+  "currentPeriod": "parcial1",
+  "periods": {
+    "parcial1": {
+      "name": "Primer Parcial",
+      "startDate": "2026-08-01T00:00:00Z",
+      "endDate": "2026-09-30T23:59:59Z",
+      "maxAbsences": 3
+    },
+    "parcial2": {
+      "name": "Segundo Parcial",
+      "startDate": "2026-10-01T00:00:00Z",
+      "endDate": "2026-11-30T23:59:59Z",
+      "maxAbsences": 3
+    },
+    "parcial3": {
+      "name": "Tercer Parcial",
+      "startDate": "2026-12-01T00:00:00Z",
+      "endDate": "2027-01-31T23:59:59Z",
+      "maxAbsences": 3
+    }
+  }
+}

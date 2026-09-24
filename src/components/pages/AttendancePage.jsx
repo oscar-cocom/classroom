@@ -135,33 +135,34 @@ export function AttendancePage() {
               <table className="w-full text-sm text-left">
                 <thead className="text-xs uppercase bg-muted/50 border-b">
                   <tr>
-                    <th className="px-6 py-3">Alumno</th>
+                    <th className="px-6 py-3">Alumno / Asistencia</th>
                     <th className="px-6 py-3">Equipo</th>
-                    <th className="px-6 py-3 text-right">Asistencia</th>
                   </tr>
                 </thead>
                 <tbody>
                   {students.map((student) => (
                     <tr key={student.id} className="border-b last:border-0 hover:bg-muted/30">
-                      <td className="px-6 py-4 font-medium">{student.name}</td>
-                      <td className="px-6 py-4">{student.teamId}</td>
-                      <td className="px-6 py-4 text-right flex justify-end gap-2">
-                        <Button 
-                          variant={attendance[student.id] === true ? "default" : "outline"}
-                          size="sm"
-                          className={attendance[student.id] === true ? "bg-green-600 hover:bg-green-700" : ""}
-                          onClick={() => handleMarkAttendance(student.id, true)}
-                        >
-                          <CheckCircle2 className="w-4 h-4 mr-2" /> Presente
-                        </Button>
-                        <Button 
-                          variant={attendance[student.id] === false ? "destructive" : "outline"}
-                          size="sm"
-                          onClick={() => handleMarkAttendance(student.id, false)}
-                        >
-                          <XCircle className="w-4 h-4 mr-2" /> Falta
-                        </Button>
+                      <td className="px-6 py-4 font-medium flex items-center gap-4">
+                        <span className="w-64 truncate">{student.name}</span>
+                        <div className="flex gap-2">
+                          <Button 
+                            variant={attendance[student.id] === true ? "default" : "outline"}
+                            size="sm"
+                            className={attendance[student.id] === true ? "bg-green-600 hover:bg-green-700" : ""}
+                            onClick={() => handleMarkAttendance(student.id, true)}
+                          >
+                            <CheckCircle2 className="w-4 h-4 mr-2" /> Presente
+                          </Button>
+                          <Button 
+                            variant={attendance[student.id] === false ? "destructive" : "outline"}
+                            size="sm"
+                            onClick={() => handleMarkAttendance(student.id, false)}
+                          >
+                            <XCircle className="w-4 h-4 mr-2" /> Falta
+                          </Button>
+                        </div>
                       </td>
+                      <td className="px-6 py-4">{student.teamId}</td>
                     </tr>
                   ))}
                 </tbody>
