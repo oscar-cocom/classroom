@@ -52,7 +52,7 @@ export function StudentStatusRow({ student, score, onScoreChange, tasksList = []
     <div className="flex flex-col md:flex-row md:items-center justify-between p-4 border rounded-lg gap-4 bg-card text-card-foreground">
       <div className="flex-1">
         <h4 className="font-semibold">{student.name}</h4>
-        <p className="text-sm text-muted-foreground">{student.githubUser} | {student.repoName}</p>
+        <p className="text-sm text-muted-foreground">{student.githubUsername} | {student.repoName}</p>
         <div className="mt-2 text-xs text-muted-foreground">
           Último commit: {taskStatus.loading ? "Cargando..." : formatDate(taskStatus.commitTime)}
         </div>
