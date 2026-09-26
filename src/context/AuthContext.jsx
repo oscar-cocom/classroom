@@ -22,13 +22,16 @@ export const AuthProvider = ({ children }) => {
       if (currentUser) {
         // We get the github username from the providerData or reloadUserInfo
         const githubUsername = currentUser.reloadUserInfo?.screenName || currentUser.providerData[0]?.uid;
-        
+        // Numeric GitHub id: stable even if the student renames their account
+        const githubId = currentUser.providerData.find(p => p.providerId === 'github.com')?.uid;
+
         setUser({
           uid: currentUser.uid,
           email: currentUser.email,
           displayName: currentUser.displayName,
           photoURL: currentUser.photoURL,
           githubUsername,
+          githubId,
           role: (githubUsername && githubUsername.toLowerCase() === teacherUsername.toLowerCase()) ? 'teacher' : 'student'
         });
       } else {

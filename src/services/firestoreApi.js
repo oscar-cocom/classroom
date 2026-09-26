@@ -1,11 +1,12 @@
 import { db } from '@/lib/firebase';
-import { collection, getDocs, doc, setDoc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, setDoc, getDoc, updateDoc, deleteDoc, query, where } from 'firebase/firestore';
 
 // References
 const STUDENTS_COL = collection(db, 'students');
 const GRADES_COL = collection(db, 'grades');
 const ATTENDANCE_COL = collection(db, 'attendance');
 const TASKS_COL = collection(db, 'tasks');
+const FOLLOWUPS_COL = collection(db, 'followups');
 
 import tasksData from '@/data/tasks.json';
 
@@ -90,10 +91,9 @@ export async function getAttendanceByDate(dateStr) {
 
 export async function getStudentAttendance(studentId) {
   if (!db) return [];
-  const snapshot = await getDocs(ATTENDANCE_COL);
-  return snapshot.docs
-    .map(d => d.data())
-    .filter(a => a.studentId === studentId);
+  // Filtered in the query: the security rules only let a student list their own records
+  const snapshot = await getDocs(query(ATTENDANCE_COL, where('studentId', '==', studentId)));
+  return snapshot.docs.map(d => d.data());
 }
 
 /**
@@ -140,4 +140,28 @@ export async function getAllGrades() {
   if (!db) return [];
   const snapshot = await getDocs(GRADES_COL);
   return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+
+/**
+ * FOLLOW-UPS: teacher notes on students to talk to (no repo, no work pushed...)
+ * One document per student: { studentId, status, note, reason, manual, updatedAt }
+ */
+export async function getFollowUps() {
+  if (!db) return [];
+  const snapshot = await getDocs(FOLLOWUPS_COL);
+  return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+
+export async function saveFollowUp(studentId, data) {
+  if (!db) return;
+  await setDoc(doc(FOLLOWUPS_COL, studentId), {
+    studentId,
+    ...data,
+    updatedAt: new Date().toISOString()
+  }, { merge: true });
+}
+
+export async function deleteFollowUp(studentId) {
+  if (!db) return;
+  await deleteDoc(doc(FOLLOWUPS_COL, studentId));
 }

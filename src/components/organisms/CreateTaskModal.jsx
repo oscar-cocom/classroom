@@ -3,6 +3,13 @@ import { Button } from '@/components/ui/button';
 import { X } from 'lucide-react';
 import { saveTask } from '@/services/firestoreApi';
 
+// <input type="datetime-local"> expects local time; toISOString() would show UTC
+// and shift the deadline every time a task is edited and saved
+function toLocalInputValue(isoString) {
+  const date = new Date(isoString);
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().substring(0, 16);
+}
+
 export function CreateTaskModal({ isOpen, onClose, onTaskCreated, editingTask }) {
   const [formData, setFormData] = useState({
     name: '',
@@ -22,7 +29,7 @@ export function CreateTaskModal({ isOpen, onClose, onTaskCreated, editingTask })
         name: editingTask.name || '',
         requirement: editingTask.requirement || '',
         sprint: editingTask.sprint || 1,
-        deadline: editingTask.deadline ? new Date(editingTask.deadline).toISOString().substring(0, 16) : '',
+        deadline: editingTask.deadline ? toLocalInputValue(editingTask.deadline) : '',
         maxScore: editingTask.maxScore || 50,
         keywords: editingTask.evaluation?.keywords?.join(', ') || '',
         matchCount: editingTask.evaluation?.matchCount || 1,

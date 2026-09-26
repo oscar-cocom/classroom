@@ -4,258 +4,319 @@
     "name": "Herrera Gomez Alan Antonio",
     "repoName": "tareas-herrera-alan",
     "teamId": "amazon",
-    "githubUsername": "AlanHG02"
+    "githubUsername": "AlanHG02",
+    "githubId": "200263057"
   },
   {
     "id": "s2",
     "name": "Gonzalez Cruz Diana Coral",
     "repoName": "tareas-gonzalez-coral",
     "teamId": "steam",
-    "githubUsername": "Glezdianacoral"
+    "githubUsername": "Glezdianacoral",
+    "githubId": "143524574"
   },
   {
     "id": "s3",
     "name": "González Echezuría Isaí José",
     "repoName": "tareas-gonzalez-isai",
     "teamId": "steam",
-    "githubUsername": "ErManco"
+    "githubUsername": "ErManco",
+    "githubId": "191076515"
   },
   {
     "id": "s4",
     "name": "Sergio Silva Cortés",
     "repoName": "tareas-silva-sergio",
     "teamId": "mercadolibre",
-    "githubUsername": "ScottSilva2727"
+    "githubUsername": "ScottSilva2727",
+    "githubId": "283659916"
   },
   {
     "id": "s5",
     "name": "Zárate Ancona Sinuhé Antonio",
     "repoName": "tareas-zarate-sinuhe",
     "teamId": "nintendo",
-    "githubUsername": "Mazby51"
+    "githubUsername": "Mazby51",
+    "githubId": "221770287"
   },
   {
     "id": "s6",
     "name": "Koh Chable Hany Mabel",
     "repoName": "tareas-koh-hany",
     "teamId": "michoacana",
-    "githubUsername": "HanikoAdmC"
+    "githubUsername": "HanikoAdmC",
+    "githubId": "200413548"
   },
   {
     "id": "s7",
     "name": "Valencia Perez Guillermo Gabriel",
     "repoName": "tareas-valencia-guillermo",
     "teamId": "amazon",
-    "githubUsername": "Guillermo-Valencia"
+    "githubUsername": "Guillermo-Valencia",
+    "githubId": "200503293"
   },
   {
     "id": "s8",
     "name": "Moreno Vital Abraham Isaias",
     "repoName": "Tareas-Moreno-Abraham",
     "teamId": "steam",
-    "githubUsername": "dadoka03"
+    "githubUsername": "dadoka03",
+    "githubId": "139025067"
   },
   {
     "id": "s9",
     "name": "Azcorra Puc Samantha",
     "repoName": "tareas---azcorra---samantha-",
     "teamId": "samsung",
-    "githubUsername": "samanthaazcorra"
+    "githubUsername": "samanthaazcorra",
+    "githubId": "324687222"
   },
   {
     "id": "s10",
     "name": "Villegas Flores Cesar Gael",
     "repoName": "tareas-Villegas-Cesar",
     "teamId": "playstation",
-    "githubUsername": "Axemotorhead"
+    "githubUsername": "Axemotorhead",
+    "githubId": "162861599"
   },
   {
     "id": "s11",
     "name": "Moreno Abad Mariana Paola",
     "repoName": "tareas-moreno-mariana",
     "teamId": "samsung",
-    "githubUsername": "MarianaPMAbad"
+    "githubUsername": "MarianaPMAbad",
+    "githubId": "200151677"
   },
   {
     "id": "s12",
     "name": "Hernandez Pech David Jesus",
     "repoName": "tareas-hernandez-david",
     "teamId": "michoacana",
-    "githubUsername": "pechdavid2004-ui"
+    "githubUsername": "pechdavid2004-ui",
+    "githubId": "324197935"
   },
   {
     "id": "s13",
     "name": "Viviana Vasquez Garcia",
     "repoName": "tareas-Vasquez-Viviana",
     "teamId": "playstation",
-    "githubUsername": "vivianagarx"
+    "githubUsername": "vivianagarx",
+    "githubId": "320729434"
   },
   {
     "id": "s14",
     "name": "Sanguino Uc Jonathan",
     "repoName": "tareas-sanguino-jonathan",
     "teamId": "nintendo",
-    "githubUsername": "Jonathan-Sanguino-Uc14"
+    "githubUsername": "Jonathan-Sanguino-Uc14",
+    "githubId": "200547621"
   },
   {
     "id": "s15",
     "name": "Arango Vázquez Gino Zoé",
     "repoName": "tareas-arango-gino",
     "teamId": "amazon",
-    "githubUsername": "Viishanti"
+    "githubUsername": "Viishanti",
+    "githubId": "189266158"
   },
   {
     "id": "s16",
     "name": "Ortiz Garcia Oscar",
     "repoName": "tareas-ortiz-oscar",
     "teamId": "nintendo",
-    "githubUsername": "OOG360"
+    "githubUsername": "OOG360",
+    "githubId": "189269861"
   },
   {
     "id": "s17",
     "name": "Hernandez Cocom Joaquin Fernando",
     "repoName": "tareas-cocom-joaquin",
     "teamId": "nintendo",
-    "githubUsername": "Kokit0Rallad0"
+    "githubUsername": "Kokit0Rallad0",
+    "githubId": "323027280"
   },
   {
     "id": "s18",
     "name": "Jorge Armando Hernández Cobuo",
     "repoName": "tareas-hernandez-jorge",
     "teamId": "steren",
-    "githubUsername": "jorgehernandez-dev"
+    "githubUsername": "jorgehernandez-dev",
+    "githubId": "262938342"
   },
   {
     "id": "s19",
     "name": "De La Cruz Perez Geovanny",
     "repoName": "tareas-delacruz-geovanny",
     "teamId": "amazon",
-    "githubUsername": "GeovannyDeLaCruzPerez"
+    "githubUsername": "GeovannyDeLaCruzPerez",
+    "githubId": "200695912"
   },
   {
     "id": "s20",
     "name": "Geysler An-kin Yam Olvera",
     "repoName": "Tareas-YamOlvera",
     "teamId": "playstation",
-    "githubUsername": "GeyslerAh-kinYamOlvera"
+    "githubUsername": "GeyslerAh-kinYamOlvera",
+    "githubId": "199984071"
   },
   {
     "id": "s21",
     "name": "Jose Antonio Canul Chan",
     "repoName": "tareas-canul-jose",
     "teamId": "steren",
-    "githubUsername": "AntonioCanul"
+    "githubUsername": "AntonioCanul",
+    "githubId": "81888965"
   },
   {
     "id": "s22",
     "name": "Uribe Baños Andrés",
     "repoName": "tareas-uribe-andres",
     "teamId": "playstation",
-    "githubUsername": "UribeGestionTEC"
+    "githubUsername": "UribeGestionTEC",
+    "githubId": "229668711"
   },
   {
     "id": "s23",
     "name": "Peraza Gonzalez Llamir",
     "repoName": "tareas-peraza-llamir",
     "teamId": "samsung",
-    "githubUsername": "llamirPeraza"
+    "githubUsername": "llamirPeraza",
+    "githubId": "324684323"
   },
   {
     "id": "s24",
     "name": "Ceferino Arellano Agustin",
     "repoName": "tareas-ceferino-agustin",
     "teamId": "samsung",
-    "githubUsername": "aguscefe"
+    "githubUsername": "aguscefe",
+    "githubId": "56488662"
   },
   {
     "id": "s25",
     "name": "Gonzalez Zenon Fernanda",
     "repoName": "tareas-gonzalez-fernanda",
     "teamId": "samsung",
-    "githubUsername": "Fer-zenon"
+    "githubUsername": "Fer-zenon",
+    "githubId": "180249219"
   },
   {
     "id": "s26",
     "name": "Chi Promotor Francisco Manuel",
     "repoName": "tareas-chi-francisco",
     "teamId": "playstation",
-    "githubUsername": "drkboifrank"
+    "githubUsername": "drkboifrank",
+    "githubId": "185731973"
   },
   {
     "id": "s27",
     "name": "Angel Osvaldo Abad Moreno",
     "repoName": "tareas-abad-angel",
     "teamId": "samsung",
-    "githubUsername": "AbadCode"
+    "githubUsername": "AbadCode",
+    "githubId": "324278345"
   },
   {
     "id": "s28",
     "name": "Cruz Aguilar Naomi Hashira",
     "repoName": "tareas-cruz-aguilar-naomi-hashira",
     "teamId": "amazon",
-    "githubUsername": "haxshi-cmd"
+    "githubUsername": "haxshi-cmd",
+    "githubId": "200164120"
   },
   {
     "id": "s29",
     "name": "Perez Gonzalez Tristan Alonso",
     "repoName": "tareas-perez-tristan",
     "teamId": "mercadolibre",
-    "githubUsername": "Triss77"
+    "githubUsername": "Triss77",
+    "githubId": "205275722"
   },
   {
     "id": "s30",
     "name": "Caamal Dominguez Jesus Alejandro",
     "repoName": "tareas-caamal-jesus",
     "teamId": "mercadolibre",
-    "githubUsername": "Jesus-caamal"
+    "githubUsername": "Jesus-caamal",
+    "githubId": "324726459"
   },
   {
     "id": "s31",
     "name": "Salazar Hernandez William Fabricio",
     "repoName": "tareas-salazar-william",
     "teamId": "playstation",
-    "githubUsername": "azardez04"
+    "githubUsername": "azardez04",
+    "githubId": "277558358"
   },
   {
     "id": "s32",
     "name": "Garcia Ramirez Carlos Christopher",
     "repoName": "tareas-garcia-christopher",
     "teamId": "playstation",
-    "githubUsername": "carlos-g22"
+    "githubUsername": "carlos-g22",
+    "githubId": "324920647"
   },
   {
     "id": "s33",
     "name": "Millán Hernández Brandon Alexis",
     "repoName": "tareas-millan-brandon",
     "teamId": "nintendo",
-    "githubUsername": "AlexHZ05"
+    "githubUsername": "AlexHZ05",
+    "githubId": "200406039"
   },
   {
     "id": "s34",
     "name": "Pérez Nuñez Neftali",
     "repoName": "tareas-perez-neftali",
     "teamId": "mercadolibre",
-    "githubUsername": "Neftali-Perez111"
+    "githubUsername": "Neftali-Perez111",
+    "githubId": "324919965"
   },
   {
     "id": "s35",
     "name": "Rodrigo Sanchez Ruiz",
     "repoName": "tareas-sanchez-rodrigo",
     "teamId": "michoacana",
-    "githubUsername": "RodrigoSRstudent"
+    "githubUsername": "RodrigoSRstudent",
+    "githubId": "199988840"
   },
   {
     "id": "s36",
     "name": "Tenorio Ramirez Fabian",
     "repoName": "Tareas-Tenorio-Fabian",
     "teamId": "michoacana",
-    "githubUsername": "Fabian-Tenorio"
+    "githubUsername": "Fabian-Tenorio",
+    "githubId": "200867110"
   },
   {
     "id": "std37",
     "name": "Navarrete Escalante Armin",
     "repoName": "tareas-navarrete-armin",
     "teamId": "samsung",
-    "githubUsername": "arminnavarrete"
+    "githubUsername": "arminnavarrete",
+    "githubId": "217287249"
+  },
+  {
+    "id": "std38",
+    "name": "Aldana Vargas Diego",
+    "repoName": "tareas-aldana-diego",
+    "teamId": "michoacana",
+    "githubUsername": "diegoaldana711",
+    "githubId": "199977943"
+  },
+  {
+    "id": "std39",
+    "name": "Martinez Cortes Dafne Montserrat",
+    "repoName": "tareas-martinez-dafne",
+    "teamId": "steam",
+    "githubUsername": "dafnemc",
+    "githubId": "144404760"
+  },
+  {
+    "id": "std40",
+    "name": "Loria Berrelleza Angel Yahir",
+    "repoName": "tareas-loria-yahir",
+    "teamId": "sin-equipo",
+    "githubUsername": "",
+    "githubId": ""
   }
 ]

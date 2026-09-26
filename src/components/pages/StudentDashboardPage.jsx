@@ -10,10 +10,12 @@ import studentsData from '@/data/students.json';
 export function StudentDashboardPage() {
   const { user } = useAuth();
   const [studentInfo, setStudentInfo] = useState(null);
-  const [grades, setGrades] = useState({ task: 0, project: '-', participation: 0 });
+  const [baseGrades, setGrades] = useState({ project: '-', participation: 0 });
   const [absences, setAbsences] = useState(0);
   const [totalClasses, setTotalClasses] = useState(0);
   const [taskMetrics, setTaskMetrics] = useState(null);
+  const [sprints, setSprints] = useState([1]);
+  const [sprint, setSprint] = useState(1);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -21,10 +23,12 @@ export function StudentDashboardPage() {
       setLoading(true);
       try {
         const urlParams = new URLSearchParams(window.location.search);
-        const previewUser = urlParams.get('preview');
-        const githubUsername = previewUser || user?.reloadUserInfo?.providerUserInfo?.[0]?.screenName || user?.email?.split('@')[0];
-        
-        const student = studentsData.find(s => s.githubUsername.toLowerCase() === githubUsername?.toLowerCase());
+        // Only the teacher may preview another student's dashboard
+        const previewUser = user?.role === 'teacher' ? urlParams.get('preview') : null;
+        const student = previewUser
+          ? studentsData.find(s => s.githubUsername.toLowerCase() === previewUser.toLowerCase())
+          : studentsData.find(s => s.githubId && s.githubId === user?.githubId)
+            || studentsData.find(s => s.githubUsername && s.githubUsername.toLowerCase() === user?.githubUsername?.toLowerCase());
         
         if (student) {
           setStudentInfo(student);
@@ -40,20 +44,13 @@ export function StudentDashboardPage() {
           if (totalAbsences === 2) autoParticipation = 50; // 2 absences = 50%
           if (totalAbsences >= 3) autoParticipation = 0; // 3 or more absences = 0%
           
-          // Fetch tasks from Firestore
+          // Evaluate every sprint's tasks; the page shows one sprint at a time
           const allTasks = await getTasks();
-          // Filter to only show Sprint 1 to students for now
-          const fetchedTasks = allTasks.filter(t => t.sprint === 1);
-
-          // Evaluate tasks from GitHub
-          const githubResult = await evaluateStudentTasks(student.repoName, fetchedTasks);
+          const githubResult = await evaluateStudentTasks(student.repoName, allTasks);
           setTaskMetrics(githubResult);
-
-          const totalMaxScore = fetchedTasks.reduce((sum, t) => sum + Number(t.maxScore), 0);
-          const taskPercentage = totalMaxScore > 0 ? Math.round((githubResult.totalScore / totalMaxScore) * 100) : 0;
+          setSprints([...new Set(allTasks.map(t => Number(t.sprint)))].sort((a, b) => a - b));
 
           setGrades({ 
-            task: taskPercentage, 
             project: '-', // Pendiente
             participation: autoParticipation 
           });
@@ -74,11 +71,21 @@ export function StudentDashboardPage() {
       <div className="p-8 text-center max-w-md mx-auto">
         <h2 className="text-2xl font-bold text-red-500 mb-2">Estudiante no encontrado</h2>
         <p className="text-muted-foreground">
-          No se encontró ningún estudiante asociado a la cuenta de GitHub <b>{user.reloadUserInfo?.providerUserInfo?.[0]?.screenName}</b>.
+          No se encontró ningún estudiante asociado a la cuenta de GitHub <b>{user.githubUsername}</b>.
         </p>
       </div>
     );
   }
+
+  // Task grade (0-100) of the sprint being viewed
+  const sprintResults = Object.values(taskMetrics?.tasks || {}).filter(t => Number(t.taskInfo.sprint) === sprint);
+  const sprintMax = sprintResults.reduce((sum, t) => sum + Number(t.taskInfo.maxScore), 0);
+  const grades = {
+    ...baseGrades,
+    task: sprintMax > 0
+      ? Math.round((sprintResults.reduce((sum, t) => sum + t.score, 0) / sprintMax) * 100)
+      : '-',
+  };
 
   // Temporary flag to avoid scaring students while teacher adjusts logic
   const HIDE_FAIL_WARNINGS = true;
@@ -105,7 +112,8 @@ export function StudentDashboardPage() {
   const renderDeliveryBadge = (status) => {
     if (status === "on_time") return <Badge className="bg-green-500 hover:bg-green-600">A tiempo</Badge>;
     if (status === "late") return <Badge className="bg-yellow-500 hover:bg-yellow-600 text-yellow-950">Entregado Tarde</Badge>;
-    return <Badge variant="destructive">Faltante</Badge>;
+    if (status === "incomplete") return <Badge variant="destructive">Incompleto</Badge>;
+    return <Badge variant="destructive">Sin entregar</Badge>;
   };
 
   const formatDate = (dateObj) => {
@@ -117,7 +125,7 @@ export function StudentDashboardPage() {
   const displayAbsences = absences >= 5 ? `+${absences}` : absences;
 
   const urlParams = new URLSearchParams(window.location.search);
-  const isPreview = urlParams.has('preview');
+  const isPreview = user?.role === 'teacher' && urlParams.has('preview');
 
   return (
     <div className="space-y-6">
@@ -160,12 +168,28 @@ export function StudentDashboardPage() {
         </div>
       </header>
 
+      {sprints.length > 1 && (
+        <nav aria-label="Sprints" className="flex gap-1 p-1 bg-muted rounded-lg w-fit">
+          {sprints.map(n => (
+            <button
+              key={n}
+              type="button"
+              onClick={() => setSprint(n)}
+              aria-current={sprint === n ? 'page' : undefined}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${sprint === n ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+            >
+              Sprint {n}
+            </button>
+          ))}
+        </nav>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className={`bg-gradient-to-br ${isFailedByAbsences ? 'from-orange-500/10 border-orange-200 dark:border-orange-900' : 'from-blue-500/10 border-blue-200 dark:border-blue-900'}`}>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
               <Trophy className={`w-4 h-4 ${isFailedByAbsences ? 'text-orange-500' : 'text-blue-500'}`} />
-              Calificación Final
+              Calificación Sprint {sprint}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -208,7 +232,7 @@ export function StudentDashboardPage() {
         </Card>
       </div>
 
-      <h2 className="text-xl font-bold mt-8 mb-4">Desglose de Evaluación</h2>
+      <h2 className="text-xl font-bold mt-8 mb-4">Desglose de Evaluación · Sprint {sprint}</h2>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Tareas */}
         <Card className="border-primary/50 ring-1 ring-primary/20">
@@ -268,10 +292,22 @@ export function StudentDashboardPage() {
       </div>
 
       {/* MÉTRICAS DE COMMITS */}
-      {taskMetrics && !taskMetrics.error && (
+      {taskMetrics?.repoMissing && (
+        <div className="bg-destructive/10 border-l-4 border-destructive p-4 rounded-md flex gap-3">
+          <XCircle className="h-5 w-5 text-destructive shrink-0" />
+          <div>
+            <h3 className="text-sm font-bold text-destructive">No encontramos tu repositorio de tareas</h3>
+            <p className="mt-1 text-sm text-foreground/80">
+              Acepta la invitación de GitHub Classroom que te compartió el profesor. Hasta entonces tus tareas cuentan como no entregadas.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {taskMetrics && !taskMetrics.error && !taskMetrics.repoMissing && (
         <>
           {Object.entries(
-            Object.values(taskMetrics.tasks).reduce((acc, t) => {
+            sprintResults.reduce((acc, t) => {
               if (!acc[t.taskInfo.sprint]) acc[t.taskInfo.sprint] = [];
               acc[t.taskInfo.sprint].push(t);
               return acc;
@@ -303,9 +339,9 @@ export function StudentDashboardPage() {
                             {formatDate(t.delivery.date)}
                           </td>
                           <td className="px-6 py-4 text-center">
-                            {t.completed 
-                              ? renderDeliveryBadge(t.delivery.status) 
-                              : (t.score > 0 ? <Badge variant="secondary">Parcial</Badge> : <Badge variant="destructive">Incompleto</Badge>)}
+                            {t.partial
+                              ? <Badge variant="secondary">Parcial</Badge>
+                              : renderDeliveryBadge(t.delivery.status)}
                           </td>
                           <td className="px-6 py-4 text-center font-bold">
                             {t.score} <span className="text-muted-foreground font-normal">/ {t.taskInfo.maxScore}</span>

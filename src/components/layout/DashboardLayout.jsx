@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Outlet, Navigate, NavLink } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
-import { LayoutDashboard, LogOut, Menu, X, Users, BookOpen, CalendarCheck, GraduationCap } from 'lucide-react';
+import { LayoutDashboard, LogOut, Menu, X, Users, BookOpen, CalendarCheck, GraduationCap, ClipboardList } from 'lucide-react';
 
 export function DashboardLayout() {
   const { user, loading, logout } = useAuth();
@@ -99,6 +99,14 @@ export function DashboardLayout() {
               >
                 <GraduationCap className="w-4 h-4" />
                 Calificaciones
+              </NavLink>
+              <NavLink 
+                to="/dashboard/followup" 
+                onClick={closeSidebar}
+                className={({isActive}) => `flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${isActive ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-foreground'}`}
+              >
+                <ClipboardList className="w-4 h-4" />
+                Seguimiento
               </NavLink>
             </>
           ) : (

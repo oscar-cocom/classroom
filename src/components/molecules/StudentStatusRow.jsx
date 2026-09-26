@@ -26,6 +26,7 @@ export function StudentStatusRow({ student, score, onScoreChange, tasksList = []
           setTaskStatus({
             loading: false,
             error: result.error,
+            repoMissing: result.repoMissing,
             totalScore: result.totalScore,
             sprintScores: result.sprintScores,
             commitTime: latestCommit
@@ -42,8 +43,8 @@ export function StudentStatusRow({ student, score, onScoreChange, tasksList = []
   }, [student.repoName, currentSprint, tasksList]);
 
   const formatDate = (dateObj) => {
-    if (!dateObj) return "Sin commits";
-    return dateObj.toLocaleString();
+    if (!dateObj) return "Sin entrega";
+    return dateObj.toLocaleString('es-MX');
   };
 
   const sprintScore = taskStatus.sprintScores[currentSprint] || 0;
@@ -61,6 +62,8 @@ export function StudentStatusRow({ student, score, onScoreChange, tasksList = []
       <div className="flex items-center gap-2">
         {taskStatus.loading ? (
           <Badge variant="outline">Verificando tarea...</Badge>
+        ) : taskStatus.repoMissing ? (
+          <Badge variant="destructive">Sin repo de tareas</Badge>
         ) : taskStatus.error ? (
           <Badge variant="destructive">Error repo</Badge>
         ) : (

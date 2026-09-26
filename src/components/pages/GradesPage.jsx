@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { getStudents, getAllGrades, getAllAttendanceRecords, saveTaskGrade, saveStudentGrades } from '@/services/firestoreApi';
+import { getStudents, getAllGrades, getAllAttendanceRecords, saveStudentGrades, getTasks } from '@/services/firestoreApi';
 import { evaluateStudentTasks } from '@/services/githubApi';
 import studentsData from '@/data/students.json';
 import { Badge } from '@/components/ui/badge';
@@ -57,23 +57,25 @@ export function GradesPage() {
   }, []);
 
   const handleSyncTasks = async () => {
-    if (!confirm("Esto revisará los repositorios de GitHub de los 36 alumnos. Puede tardar un par de minutos. ¿Continuar?")) return;
+    if (!confirm(`Esto revisará los repositorios de GitHub de los ${students.length} alumnos. Puede tardar un par de minutos. ¿Continuar?`)) return;
     
     setIsSyncing(true);
     setSyncProgress(0);
     try {
+      const sprintTasks = (await getTasks()).filter(t => t.sprint === 1);
+      const maxScore = sprintTasks.reduce((sum, t) => sum + Number(t.maxScore), 0);
       const updatedGrades = { ...grades };
       let count = 0;
       for (const student of students) {
-        const githubResult = await evaluateStudentTasks(student.repoName);
-        const taskScore = githubResult.totalScore || 0;
-        
-        let reasonParts = [];
-        if (githubResult.delivery.status === "late") reasonParts.push("Entrega tardía (-20 pts)");
-        if (githubResult.task2.status === "partial") reasonParts.push("Solo 1 botón en form");
-        if (githubResult.task2.status === "missing") reasonParts.push("No hizo Tarea 2");
-        if (!githubResult.task1.completed) reasonParts.push("No hizo Tarea 1");
-        const taskReason = reasonParts.join(", ") || "Completo";
+        const githubResult = await evaluateStudentTasks(student.repoName, sprintTasks);
+        if (githubResult.error) {
+          count++;
+          continue;
+        }
+        const taskScore = maxScore > 0 ? Math.round((githubResult.totalScore / maxScore) * 100) : 0;
+        const taskReason = githubResult.repoMissing
+          ? "Sin repo de tareas"
+          : describeTaskResults(Object.values(githubResult.tasks));
         
         await saveStudentGrades(student.id, 'Sprint 1', { taskScore, taskReason });
         
@@ -92,6 +94,18 @@ export function GradesPage() {
       setIsSyncing(false);
       setSyncProgress(0);
     }
+  };
+
+  const describeTaskResults = (taskResults) => {
+    const parts = taskResults.flatMap(({ taskInfo, delivery, partial }) => {
+      const name = taskInfo.name.split(':')[0];
+      if (delivery.status === "missing" || delivery.status === "incomplete") return [`No hizo ${name}`];
+      const notes = [];
+      if (delivery.status === "late") notes.push(`${name} tarde (-20%)`);
+      if (partial) notes.push(`${name} parcial`);
+      return notes;
+    });
+    return parts.join(", ") || "Completo";
   };
 
   const getAutoParticipation = (absenceCount) => {
