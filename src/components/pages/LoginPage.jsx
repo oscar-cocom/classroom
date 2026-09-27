@@ -49,7 +49,7 @@ function sprintStatus(s, today) {
  * Public landing page. Doubles as the sign-in screen: signed-in users are sent to their dashboard.
  */
 export function LoginPage() {
-  const { user, loginWithGithub } = useAuth();
+  const { user, loginWithGithub, authError } = useAuth();
   const [error, setError] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [showcase, setShowcase] = useState(null);
@@ -61,6 +61,14 @@ export function LoginPage() {
       .then(setShowcase)
       .catch(() => setShowcase({}));
   }, []);
+
+  // Errors from the GitHub server flow (see api/auth/github/callback.js)
+  const returnErrorMessage = {
+    access_denied: 'Cancelaste la autorización en GitHub. Inténtalo de nuevo cuando quieras.',
+    state: 'El inicio de sesión se abrió en otro navegador o tardó demasiado. Vuelve a dar clic en "Entrar con GitHub" desde Safari o Chrome.',
+    config: 'El inicio de sesión no está configurado todavía. Avísale al profesor.',
+  }[authError] || (authError ? 'No se pudo completar el inicio de sesión con GitHub. Inténtalo de nuevo.' : '');
+  const shownError = error || returnErrorMessage;
 
   if (user) {
     return <Navigate to={user.role === 'teacher' ? '/dashboard/teams' : '/dashboard/my-grades'} replace />;
@@ -172,10 +180,10 @@ export function LoginPage() {
                     Estás en el navegador de {inApp}
                   </p>
                   <p className="mt-1">
-                    Desde aquí GitHub no te deja entrar.{' '}
+                    Si GitHub no te deja entrar desde aquí,{' '}
                     {isAndroid()
-                      ? 'Ábrelo en Chrome con el botón de abajo.'
-                      : <>Toca <b>⋯</b> o el ícono de compartir y elige <b>Abrir en Safari</b>, o copia el enlace y pégalo en Safari.</>}
+                      ? 'ábrelo en Chrome con el botón de abajo.'
+                      : <>toca <b>⋯</b> o el ícono de compartir y elige <b>Abrir en Safari</b>, o copia el enlace y pégalo en Safari.</>}
                   </p>
                   <div className="mt-3 flex flex-wrap gap-2">
                     {isAndroid() && (
@@ -191,10 +199,10 @@ export function LoginPage() {
                 </div>
               )}
 
-              {error && (
+              {shownError && (
                 <div role="alert" className="mt-6 flex max-w-md gap-2 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
                   <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" aria-hidden="true" />
-                  {error}
+                  {shownError}
                 </div>
               )}
 
