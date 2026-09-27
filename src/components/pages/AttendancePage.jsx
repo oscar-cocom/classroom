@@ -4,8 +4,8 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { saveAttendance, getAttendanceByDate } from '@/services/firestoreApi';
 import studentsData from '@/data/students.json';
-import { CheckCircle2, XCircle, FileCheck2, Calendar as CalendarIcon } from 'lucide-react';
-import { localDateString } from '@/lib/sprints';
+import { CheckCircle2, XCircle, FileCheck2, Calendar as CalendarIcon, CalendarOff } from 'lucide-react';
+import { localDateString, isWeekend, weekdayName } from '@/lib/sprints';
 import { AttendanceSummary } from '@/components/organisms/AttendanceSummary';
 import { LoadingAnimation } from '@/components/atoms/LoadingAnimation';
 import Calendar from 'react-calendar';
@@ -111,7 +111,9 @@ export function AttendancePage() {
                     setShowCalendar(false);
                   }} 
                   value={date} 
+                  tileClassName={({ date: d, view: v }) => (v === 'month' && (d.getDay() === 0 || d.getDay() === 6) ? 'no-class-day' : null)}
                 />
+                <p className="px-2 pb-1 pt-2 text-xs text-muted-foreground">En gris: fin de semana, sin clase.</p>
               </div>
             )}
           </div>
@@ -122,7 +124,13 @@ export function AttendancePage() {
       {view === 'summary' ? <AttendanceSummary /> : (
       <Card>
         <CardHeader>
-          <CardTitle>Asistencia: {dateStr}</CardTitle>
+          <CardTitle>Asistencia: {dateStr} <span className="text-base font-normal text-muted-foreground capitalize">· {weekdayName(dateStr)}</span></CardTitle>
+          {isWeekend(dateStr) && (
+            <p className="mt-2 flex items-start gap-2 rounded-md border bg-muted/60 p-3 text-sm text-muted-foreground">
+              <CalendarOff className="h-4 w-4 shrink-0 mt-0.5" aria-hidden="true" />
+              Es fin de semana: normalmente no hay clase y no se pasa lista. Si sí hubo clase, puedes marcar la asistencia normalmente.
+            </p>
+          )}
         </CardHeader>
         <CardContent>
           {loading ? (

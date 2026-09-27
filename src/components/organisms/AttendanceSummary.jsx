@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Download } from 'lucide-react';
 import { getAllAttendanceRecords } from '@/services/firestoreApi';
 import { PROJECT_SPRINTS } from '@/lib/projectGrading';
-import { sprintOfDate, attendancePoints, RECOVERY_ABSENCES } from '@/lib/sprints';
+import { sprintOfDate, attendancePoints, RECOVERY_ABSENCES, isWeekend } from '@/lib/sprints';
 import studentsData from '@/data/students.json';
 import { LoadingAnimation } from '@/components/atoms/LoadingAnimation';
 
@@ -113,7 +113,9 @@ export function AttendanceSummary() {
                 <tr>
                   <th scope="col" className="sticky left-0 z-10 bg-muted px-4 py-2 text-left min-w-[240px]">Alumno</th>
                   {dates.map(d => (
-                    <th key={d} scope="col" className="px-2 py-2 text-center font-medium whitespace-nowrap">{shortDate(d)}</th>
+                    <th key={d} scope="col" className={`px-2 py-2 text-center font-medium whitespace-nowrap ${isWeekend(d) ? 'bg-muted-foreground/10 text-muted-foreground' : ''}`} title={isWeekend(d) ? 'Fin de semana' : undefined}>
+                      {shortDate(d)}{isWeekend(d) && <span className="block text-[10px] font-normal">fin de sem.</span>}
+                    </th>
                   ))}
                   <th scope="col" className="px-3 py-2 text-center">Faltas</th>
                   <th scope="col" className="px-3 py-2 text-center">Just.</th>

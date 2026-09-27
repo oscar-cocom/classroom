@@ -55,3 +55,15 @@ export function toCancunInputValue(isoString) {
 export function fromCancunInputValue(value) {
   return new Date(`${value}:59-05:00`).toISOString();
 }
+
+// Saturday or Sunday for a YYYY-MM-DD date (no class, but attendance can still be taken)
+export function isWeekend(dateStr) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const day = new Date(y, m - 1, d).getDay();
+  return day === 0 || day === 6;
+}
+
+export function weekdayName(dateStr) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString('es-MX', { weekday: 'long' });
+}

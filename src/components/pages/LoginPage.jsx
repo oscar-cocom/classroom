@@ -3,10 +3,11 @@ import { useAuth } from '@/context/AuthContext';
 import { Navigate } from 'react-router-dom';
 import {
   School, GitBranch, Presentation, CalendarCheck, Hand, ShieldCheck, Loader2, AlertCircle,
-  ChevronDown, CheckCircle2, Clock, Users, ArrowRight, AlertTriangle,
+  ChevronDown, CheckCircle2, Clock, Users, ArrowRight, AlertTriangle, Copy, Check, ExternalLink,
 } from 'lucide-react';
 import { getShowcase } from '@/services/firestoreApi';
 import { localDateString } from '@/lib/sprints';
+import { inAppBrowserName, isAndroid, chromeIntentUrl } from '@/lib/browser';
 import teamsData from '@/data/teams.json';
 import studentsData from '@/data/students.json';
 import doodles from '@/assets/landing-doodles.webp';
@@ -51,6 +52,8 @@ export function LoginPage() {
   const [error, setError] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [showcase, setShowcase] = useState(null);
+  const [copied, setCopied] = useState(false);
+  const inApp = inAppBrowserName();
 
   useEffect(() => {
     getShowcase()
@@ -71,8 +74,10 @@ export function LoginPage() {
       console.error(err);
       if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') {
         setError('Cerraste la ventana de GitHub. Inténtalo de nuevo.');
+      } else if (inApp) {
+        setError(`El navegador de ${inApp} no deja iniciar sesión con GitHub. Abre esta página en Chrome o Safari.`);
       } else if (err.code === 'auth/popup-blocked') {
-        setError('Tu navegador bloqueó la ventana de GitHub. Permite ventanas emergentes para este sitio.');
+        setError('Tu navegador bloqueó la ventana de GitHub. Permite ventanas emergentes para este sitio y vuelve a intentarlo.');
       } else if (err.code === 'auth/unauthorized-domain') {
         setError('Este dominio no está autorizado. Contacta al profesor.');
       } else {
@@ -80,6 +85,16 @@ export function LoginPage() {
       }
       setIsLoggingIn(false);
     }
+  };
+
+  const copyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.origin);
+    } catch {
+      window.prompt('Copia este enlace:', window.location.origin);
+    }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   const today = localDateString(new Date());
@@ -148,6 +163,32 @@ export function LoginPage() {
               <p className="mt-5 max-w-xl text-lg text-muted-foreground">
                 Tus tareas, la demo de tu equipo, tu asistencia y tu calificación de cada sprint, explicadas punto por punto.
               </p>
+
+              {inApp && (
+                <div role="alert" className="mt-6 max-w-md rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
+                  <p className="flex items-start gap-2 font-semibold">
+                    <AlertTriangle className="h-5 w-5 shrink-0" aria-hidden="true" />
+                    Estás en el navegador de {inApp}
+                  </p>
+                  <p className="mt-1">
+                    Desde aquí GitHub no te deja entrar.{' '}
+                    {isAndroid()
+                      ? 'Ábrelo en Chrome con el botón de abajo.'
+                      : <>Toca <b>⋯</b> o el ícono de compartir y elige <b>Abrir en Safari</b>, o copia el enlace y pégalo en Safari.</>}
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {isAndroid() && (
+                      <a href={chromeIntentUrl()} className="inline-flex h-10 items-center gap-2 rounded-md bg-amber-900 px-4 font-semibold text-white">
+                        <ExternalLink className="h-4 w-4" aria-hidden="true" /> Abrir en Chrome
+                      </a>
+                    )}
+                    <button type="button" onClick={copyLink} className="inline-flex h-10 items-center gap-2 rounded-md border border-amber-400 bg-white px-4 font-semibold cursor-pointer">
+                      {copied ? <Check className="h-4 w-4" aria-hidden="true" /> : <Copy className="h-4 w-4" aria-hidden="true" />}
+                      {copied ? 'Enlace copiado' : 'Copiar enlace'}
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {error && (
                 <div role="alert" className="mt-6 flex max-w-md gap-2 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">

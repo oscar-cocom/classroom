@@ -37,7 +37,13 @@
 }
 
 .react-calendar__month-view__days__day--weekend {
-  color: hsl(var(--destructive));
+  color: hsl(var(--muted-foreground));
+}
+
+/* Weekends: no class, shown greyed out but still selectable */
+.react-calendar__tile.no-class-day {
+  background: hsl(var(--muted));
+  opacity: 0.75;
 }
 
 .react-calendar__tile {
