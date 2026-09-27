@@ -6,13 +6,12 @@ import { getStudentAttendance, getStudentGrades, getTasks } from '@/services/fir
 import { evaluateStudentTasks } from '@/services/githubApi';
 import { BookOpen, CalendarX2, CheckCircle2, Trophy, Clock, XCircle, AlertTriangle } from 'lucide-react';
 import studentsData from '@/data/students.json';
+import { sprintOfDate, participationFromAbsences } from '@/lib/sprints';
 
 export function StudentDashboardPage() {
   const { user } = useAuth();
   const [studentInfo, setStudentInfo] = useState(null);
-  const [baseGrades, setGrades] = useState({ project: '-', participation: 0 });
-  const [absences, setAbsences] = useState(0);
-  const [totalClasses, setTotalClasses] = useState(0);
+  const [attendance, setAttendance] = useState([]);
   const [taskMetrics, setTaskMetrics] = useState(null);
   const [sprints, setSprints] = useState([1]);
   const [sprint, setSprint] = useState(1);
@@ -33,27 +32,13 @@ export function StudentDashboardPage() {
         if (student) {
           setStudentInfo(student);
 
-          // Get attendance
-          const att = await getStudentAttendance(student.id);
-          setTotalClasses(att.length);
-          const totalAbsences = att.filter(a => !a.isPresent).length;
-          setAbsences(totalAbsences);
+          setAttendance(await getStudentAttendance(student.id));
 
-          // Calculate participation automatically based on absences
-          let autoParticipation = 100; // 0 to 1 absences = 100%
-          if (totalAbsences === 2) autoParticipation = 50; // 2 absences = 50%
-          if (totalAbsences >= 3) autoParticipation = 0; // 3 or more absences = 0%
-          
           // Evaluate every sprint's tasks; the page shows one sprint at a time
           const allTasks = await getTasks();
           const githubResult = await evaluateStudentTasks(student.repoName, allTasks);
           setTaskMetrics(githubResult);
           setSprints([...new Set(allTasks.map(t => Number(t.sprint)))].sort((a, b) => a - b));
-
-          setGrades({ 
-            project: '-', // Pendiente
-            participation: autoParticipation 
-          });
         }
       } catch (err) {
         console.error("Error loading student dashboard:", err);
@@ -80,8 +65,11 @@ export function StudentDashboardPage() {
   // Task grade (0-100) of the sprint being viewed
   const sprintResults = Object.values(taskMetrics?.tasks || {}).filter(t => Number(t.taskInfo.sprint) === sprint);
   const sprintMax = sprintResults.reduce((sum, t) => sum + Number(t.taskInfo.maxScore), 0);
+  // Absences only count toward the sprint whose dates they fall in
+  const absences = attendance.filter(a => !a.isPresent && sprintOfDate(a.date) === sprint).length;
   const grades = {
-    ...baseGrades,
+    project: '-', // Pendiente
+    participation: participationFromAbsences(absences),
     task: sprintMax > 0
       ? Math.round((sprintResults.reduce((sum, t) => sum + t.score, 0) / sprintMax) * 100)
       : '-',
@@ -107,7 +95,6 @@ export function StudentDashboardPage() {
     partialNote = "Sin proyecto aún";
   }
   
-  const attendancePercentage = totalClasses === 0 ? 100 : Math.round(((totalClasses - absences) / totalClasses) * 100);
 
   const renderDeliveryBadge = (status) => {
     if (status === "on_time") return <Badge className="bg-green-500 hover:bg-green-600">A tiempo</Badge>;
@@ -220,7 +207,7 @@ export function StudentDashboardPage() {
               Tienes {absences} falta{absences !== 1 ? 's' : ''} registrada{absences !== 1 ? 's' : ''}
             </div>
             <div className="space-y-3 mt-2">
-              <p className="text-sm text-muted-foreground">Reglas de asistencia para el parcial:</p>
+              <p className="text-sm text-muted-foreground">Reglas de asistencia para este sprint:</p>
               <ul className="text-sm space-y-1.5 border-l-2 border-muted pl-3">
                 <li><strong className="text-foreground">0 a 1 falta:</strong> Participación 100%</li>
                 <li><strong className="text-foreground">2 faltas:</strong> Participación baja al 50%</li>

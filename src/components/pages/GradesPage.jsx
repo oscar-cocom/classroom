@@ -3,6 +3,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { getStudents, getAllGrades, getAllAttendanceRecords, saveStudentGrades, getTasks } from '@/services/firestoreApi';
 import { evaluateStudentTasks } from '@/services/githubApi';
 import studentsData from '@/data/students.json';
+import { sprintOfDate, participationFromAbsences } from '@/lib/sprints';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { RefreshCcw, ExternalLink, Pencil, Save, X, Search } from 'lucide-react';
@@ -32,7 +33,8 @@ export function GradesPage() {
         const allAttendance = await getAllAttendanceRecords();
         const absencesMap = {};
         allAttendance.forEach(a => {
-          if (!a.isPresent) {
+          // This page grades Sprint 1: later absences belong to the next sprint
+          if (!a.isPresent && sprintOfDate(a.date) === 1) {
             absencesMap[a.studentId] = (absencesMap[a.studentId] || 0) + 1;
           }
         });
@@ -108,11 +110,7 @@ export function GradesPage() {
     return parts.join(", ") || "Completo";
   };
 
-  const getAutoParticipation = (absenceCount) => {
-    if (absenceCount <= 1) return 100;
-    if (absenceCount === 2) return 50;
-    return 0;
-  };
+  const getAutoParticipation = participationFromAbsences;
 
   const renderAbsences = (count) => {
     if (count >= 4) {
