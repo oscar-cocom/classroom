@@ -1,5 +1,5 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { LoginPage } from '@/components/pages/LoginPage';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
@@ -18,10 +18,31 @@ function TeacherOnly({ children }) {
   return user?.role === 'teacher' ? children : <Navigate to="/dashboard/my-grades" replace />;
 }
 
+// Tab title per screen, so several open tabs can be told apart
+const PAGE_TITLES = [
+  [/^\/dashboard\/teams/, 'Equipos'],
+  [/^\/dashboard\/team\//, 'Evaluar equipo'],
+  [/^\/dashboard\/students/, 'Alumnos'],
+  [/^\/dashboard\/attendance/, 'Asistencia'],
+  [/^\/dashboard\/grades/, 'Calificaciones'],
+  [/^\/dashboard\/followup/, 'Seguimiento'],
+  [/^\/dashboard\/my-grades/, 'Mis calificaciones'],
+];
+
+function PageTitle() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    const page = PAGE_TITLES.find(([pattern]) => pattern.test(pathname))?.[1];
+    document.title = page ? `${page} · Mi Aula` : 'Mi Aula · Programación Web ITCancún';
+  }, [pathname]);
+  return null;
+}
+
 function App() {
   return (
     <AuthProvider>
       <Router>
+        <PageTitle />
         <Routes>
           <Route path="/" element={<LoginPage />} />
           <Route path="/login" element={<LoginPage />} />
