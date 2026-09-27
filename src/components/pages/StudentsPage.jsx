@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Table } from '@/components/ui/table';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Search, ExternalLink } from 'lucide-react';
@@ -59,7 +60,7 @@ export function StudentsPage() {
       <Card>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left">
+            <Table className="w-full text-sm text-left">
               <thead className="text-xs uppercase bg-muted/50 border-b">
                 <tr>
                   <th className="px-6 py-3">#</th>
@@ -99,7 +100,7 @@ export function StudentsPage() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </Table>
           </div>
         </CardContent>
       </Card>

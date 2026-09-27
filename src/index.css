@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+/* dark: utilities follow the .dark class (like the shadcn theme variables), not the
+   OS setting, so a Mac in dark mode doesn't get dark rows on the light app */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
 

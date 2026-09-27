@@ -1,11 +1,16 @@
 import React, { useState, useEffect } from 'react';
+import { Table } from '@/components/ui/table';
 import { useAuth } from '@/context/AuthContext';
+import { Link } from 'react-router-dom';
+import { LoadingAnimation } from '@/components/atoms/LoadingAnimation';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { getStudentAttendance, getStudentGrades, getTasks } from '@/services/firestoreApi';
 import { evaluateStudentTasks } from '@/services/githubApi';
 import { BookOpen, CalendarX2, CheckCircle2, Trophy, Clock, XCircle, AlertTriangle } from 'lucide-react';
 import studentsData from '@/data/students.json';
+import teamsData from '@/data/teams.json';
+import campusImg from '@/assets/campus-itcancun.jpeg';
 import { sprintOfDate, isUnexcusedAbsence, attendancePoints, DEFAULT_PARTICIPATION, RECOVERY_ABSENCES, RECOVERY_DATES } from '@/lib/sprints';
 
 export function StudentDashboardPage() {
@@ -57,7 +62,7 @@ export function StudentDashboardPage() {
     loadData();
   }, [user]);
 
-  if (loading) return <div className="p-8">Cargando tu progreso...</div>;
+  if (loading) return <LoadingAnimation size={220} label="Revisando tus tareas y calificaciones…" />;
 
   if (!studentInfo) {
     return (
@@ -137,6 +142,12 @@ export function StudentDashboardPage() {
     return <Badge variant="destructive">Sin entregar</Badge>;
   };
 
+  const renderTaskStatus = (t) => (t.partial
+    ? <Badge variant="secondary">Parcial</Badge>
+    : !t.completed && new Date(t.taskInfo.deadline) > new Date()
+      ? <Badge variant="outline">Aún no vence</Badge>
+      : renderDeliveryBadge(t.delivery.status));
+
   const formatDate = (dateObj) => {
     if (!dateObj) return "Sin registro";
     return dateObj.toLocaleDateString('es-MX') + ' ' + dateObj.toLocaleTimeString('es-MX');
@@ -148,17 +159,50 @@ export function StudentDashboardPage() {
   const urlParams = new URLSearchParams(window.location.search);
   const isPreview = user?.role === 'teacher' && urlParams.has('preview');
 
+  const teamName = teamsData.find(t => t.id === studentInfo.teamId)?.name || studentInfo.teamId;
+
   return (
     <div className="space-y-6">
-      {isPreview && (
-        <a 
-          href="/dashboard/grades" 
-          className="inline-flex items-center text-sm font-medium text-primary hover:underline"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1"><path d="m15 18-6-6 6-6"/></svg>
-          Volver a calificaciones
-        </a>
-      )}
+      {/* Cover: full-bleed photo (cancels the layout padding), dark on the left for
+          the text, fading at the bottom into the page background */}
+      <section className="relative -mx-4 -mt-4 md:-mx-8 md:-mt-8 min-h-[280px] md:min-h-[360px] overflow-hidden flex items-end">
+        <img src={campusImg} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-cover" />
+        <div
+          className="absolute inset-0"
+          aria-hidden="true"
+          style={{ background: 'linear-gradient(90deg, rgb(2 6 23 / 0.92) 0%, rgb(2 6 23 / 0.7) 35%, rgb(2 6 23 / 0.25) 70%, rgb(2 6 23 / 0.1) 100%)' }}
+        />
+        <div
+          className="absolute inset-0"
+          aria-hidden="true"
+          style={{ background: 'linear-gradient(to top, color-mix(in srgb, hsl(var(--muted)) 40%, hsl(var(--background))) 0%, transparent 22%)' }}
+        />
+
+        {isPreview && (
+          // z-10: the greeting block below is also positioned and would otherwise sit on top and swallow the clicks
+          <Link
+            to="/dashboard/grades"
+            className="absolute z-10 top-4 left-4 md:left-8 inline-flex items-center rounded-md bg-black/40 px-3 py-1.5 text-sm font-medium text-white backdrop-blur hover:bg-black/60 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+            Volver a calificaciones
+          </Link>
+        )}
+
+        <div className="relative w-full px-4 md:px-8 pt-20 pb-16 md:pb-20 text-white">
+          <p className="text-xs md:text-sm font-semibold uppercase tracking-[0.2em] text-sky-300">
+            Programación Web · ITCancún
+          </p>
+          <h1 className="mt-2 max-w-3xl text-3xl md:text-5xl font-extrabold leading-tight tracking-tight [text-shadow:0_2px_12px_rgb(0_0_0/0.5)]">
+            ¡Hola, {studentInfo.name}!
+          </h1>
+          <p className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm md:text-base text-white/85">
+            <span>{teamName}</span>
+            <span aria-hidden="true" className="text-white/40">•</span>
+            <span className="font-mono text-sm">{studentInfo.repoName}</span>
+          </p>
+        </div>
+      </section>
 
       {isFailedByAbsences && (
         <div className="bg-orange-500/10 border-l-4 border-orange-500 p-4 rounded-md mt-4">
@@ -175,19 +219,6 @@ export function StudentDashboardPage() {
           </div>
         </div>
       )}
-
-      <header className="flex items-center gap-4">
-        <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center text-primary text-2xl font-bold uppercase">
-          {studentInfo.name.charAt(0)}
-        </div>
-        <div>
-          <h1 className="text-3xl font-bold">¡Hola, {studentInfo.name}!</h1>
-          <p className="text-muted-foreground mt-1">
-            Equipo: <span className="font-medium text-foreground">{studentInfo.teamId}</span> | 
-            Repo: <span className="font-mono text-sm ml-1 text-primary">{studentInfo.repoName}</span>
-          </p>
-        </div>
-      </header>
 
       {sprints.length > 1 && (
         <nav aria-label="Sprints" className="flex gap-1 p-1 bg-muted rounded-lg w-fit">
@@ -261,7 +292,7 @@ export function StudentDashboardPage() {
       <p className="text-sm text-muted-foreground mb-4">
         Tu calificación del sprint es la suma de: Tareas (hasta 40 pts) + Proyecto (hasta 50 pts) + Asistencia (hasta 5 pts) + Participación (hasta 5 pts) = 100.
       </p>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         {/* Tareas */}
         <Card className="border-primary/50 ring-1 ring-primary/20">
           <CardHeader>
@@ -277,7 +308,7 @@ export function StudentDashboardPage() {
               {sprintResults.map(t => (
                 <li key={t.taskInfo.id} className="flex justify-between gap-2">
                   <span className="text-muted-foreground">{t.taskInfo.name.split(':')[0]}</span>
-                  <span className="font-medium">{t.score} / {t.taskInfo.maxScore}</span>
+                  <span className="font-medium whitespace-nowrap">{t.score} / {t.taskInfo.maxScore}</span>
                 </li>
               ))}
             </ul>
@@ -329,12 +360,12 @@ export function StudentDashboardPage() {
                 <ul className="text-sm space-y-1 mb-3">
                   <li className="flex justify-between gap-2">
                     <span className="text-muted-foreground">Tu expo</span>
-                    <span className="font-medium">{saved.projectExpo} / 10</span>
+                    <span className="font-medium whitespace-nowrap">{saved.projectExpo} / 10</span>
                   </li>
                   {saved.projectRubric !== undefined && (
                     <li className="flex justify-between gap-2">
                       <span className="text-muted-foreground">Rúbrica de tu equipo <span className="text-xs">(retroalimentación)</span></span>
-                      <span className="font-medium">{saved.projectRubric} / 10</span>
+                      <span className="font-medium whitespace-nowrap">{saved.projectRubric} / 10</span>
                     </li>
                   )}
                 </ul>
@@ -360,15 +391,15 @@ export function StudentDashboardPage() {
             <ul className="text-sm space-y-1 mb-3">
               <li className="flex justify-between gap-2">
                 <span className="text-muted-foreground">Asistencia ({absences} falta{absences !== 1 ? 's' : ''})</span>
-                <span className="font-medium">{fmt(points.attendance)} / 5</span>
+                <span className="font-medium whitespace-nowrap">{fmt(points.attendance)} / 5</span>
               </li>
               <li className="flex justify-between gap-2">
                 <span className="text-muted-foreground">Participación en clase</span>
-                <span className="font-medium">{fmt(points.participation)} / 5</span>
+                <span className="font-medium whitespace-nowrap">{fmt(points.participation)} / 5</span>
               </li>
             </ul>
             <p className="text-xs text-muted-foreground border-t pt-2">
-              Asistencia: 0–1 faltas = 5 · 2 faltas = 2.5 · 3 o más = 0. La participación empieza en 5 y el profesor la ajusta según tu desempeño en clase.
+              Asistencia: 0–1 faltas = 5 · 2 faltas = 2.5 · 3 o más = 0. La participación la asigna el profesor al calificar la demo de tu equipo{saved?.participationPoints === undefined ? '; todavía está pendiente' : ''}.
             </p>
           </CardContent>
         </Card>
@@ -403,7 +434,25 @@ export function StudentDashboardPage() {
               </h2>
               <Card>
                 <CardContent className="p-0">
-                  <table className="w-full text-sm text-left">
+                  {/* Phones: one card per task */}
+                  <ul className="md:hidden divide-y">
+                    {tasks.map((t) => (
+                      <li key={t.taskInfo.id} className="p-4 space-y-2">
+                        <div className="flex items-start justify-between gap-3">
+                          <p className="font-medium">{t.taskInfo.name}</p>
+                          <p className="font-bold whitespace-nowrap">
+                            {t.score} <span className="text-muted-foreground font-normal">/ {t.taskInfo.maxScore}</span>
+                          </p>
+                        </div>
+                        <p className="text-sm text-muted-foreground">{t.taskInfo.requirement}</p>
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          {renderTaskStatus(t)}
+                          <span className="font-mono text-xs text-muted-foreground">{formatDate(t.delivery.date)}</span>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                  <Table className="hidden md:table w-full text-sm text-left">
                     <thead className="text-xs uppercase bg-muted/50 border-b">
                       <tr>
                         <th className="px-6 py-3">Actividad</th>
@@ -421,20 +470,14 @@ export function StudentDashboardPage() {
                           <td className="px-6 py-4 text-center font-mono text-xs">
                             {formatDate(t.delivery.date)}
                           </td>
-                          <td className="px-6 py-4 text-center">
-                            {t.partial
-                              ? <Badge variant="secondary">Parcial</Badge>
-                              : !t.completed && new Date(t.taskInfo.deadline) > new Date()
-                                ? <Badge variant="outline">Aún no vence</Badge>
-                                : renderDeliveryBadge(t.delivery.status)}
-                          </td>
-                          <td className="px-6 py-4 text-center font-bold">
+                          <td className="px-6 py-4 text-center">{renderTaskStatus(t)}</td>
+                          <td className="px-6 py-4 text-center font-bold whitespace-nowrap">
                             {t.score} <span className="text-muted-foreground font-normal">/ {t.taskInfo.maxScore}</span>
                           </td>
                         </tr>
                       ))}
                     </tbody>
-                  </table>
+                  </Table>
                   <div className="p-4 bg-muted/20 border-t flex justify-end gap-4 items-center">
                     <span className="text-sm text-muted-foreground">Total Sprint {sprint}:</span>
                     <span className="text-2xl font-bold text-primary">

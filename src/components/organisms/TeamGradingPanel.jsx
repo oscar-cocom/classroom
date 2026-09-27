@@ -9,15 +9,15 @@ export function TeamGradingPanel({ grades, onGradeChange, disabled = false }) {
   return (
     <Card className="mb-8 border-primary/20">
       <CardHeader className="bg-primary/5 rounded-t-lg">
-        <CardTitle className="flex justify-between items-center">
+        <CardTitle className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
           <span>
             Rúbrica del Proyecto (Equipo)
             <span className="block text-sm font-normal text-muted-foreground mt-1">Guía y retroalimentación: no suma puntos, te ayuda a decidir la expo de cada alumno.</span>
           </span>
-          <span className="text-2xl font-bold text-primary">{totalScore} / 10 pts</span>
+          <span className="text-2xl font-bold text-primary whitespace-nowrap">{totalScore} / 10 pts</span>
         </CardTitle>
       </CardHeader>
-      <CardContent className="p-6">
+      <CardContent className="p-4 sm:p-6">
         <div className="space-y-4">
           {RUBRIC_ITEMS.map(item => (
             <div key={item.id} className="flex items-center space-x-3 p-2 hover:bg-secondary/50 rounded transition-colors">

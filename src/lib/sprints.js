@@ -8,7 +8,10 @@ export const SPRINT_ATTENDANCE_START = {
 
 // Sprint points: tasks 40 + project 50 + attendance 5 + participation 5 = 100
 export const MAX_ATTENDANCE = 5;
-export const DEFAULT_PARTICIPATION = 5;
+// Participation is earned at the sprint demo: 0 until the teacher grades the team,
+// then 5 by default when the student's expo is first graded (the teacher can lower it)
+export const DEFAULT_PARTICIPATION = 0;
+export const PARTICIPATION_ON_GRADING = 5;
 
 // Unexcused absences in a sprint that send it to recovery instead of an ordinary grade
 export const RECOVERY_ABSENCES = 4;

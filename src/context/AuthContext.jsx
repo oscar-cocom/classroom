@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth';
 import { auth, githubProvider } from '@/lib/firebase';
 import teacherIds from '@/data/teachers.json';
+import { LoadingAnimation } from '@/components/atoms/LoadingAnimation';
 
 const AuthContext = createContext({});
 
@@ -63,7 +64,7 @@ export const AuthProvider = ({ children }) => {
 
   return (
     <AuthContext.Provider value={{ user, loading, loginWithGithub, logout }}>
-      {!loading && children}
+      {loading ? <LoadingAnimation fullScreen label="Iniciando…" /> : children}
     </AuthContext.Provider>
   );
 };

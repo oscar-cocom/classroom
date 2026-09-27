@@ -4,7 +4,8 @@ import { TeamGradingPanel } from '@/components/organisms/TeamGradingPanel';
 import { StudentStatusRow } from '@/components/molecules/StudentStatusRow';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, Eye, EyeOff } from 'lucide-react';
-import { getTasks, getTeamEvaluation, saveTeamEvaluation, saveStudentGrades } from '@/services/firestoreApi';
+import { getTasks, getTeamEvaluation, saveTeamEvaluation, saveStudentGrades, getAllGrades } from '@/services/firestoreApi';
+import { DEFAULT_PARTICIPATION, PARTICIPATION_ON_GRADING } from '@/lib/sprints';
 import { PROJECT_SPRINTS, rubricPoints, projectScore } from '@/lib/projectGrading';
 
 import teamsData from '@/data/teams.json';
@@ -22,9 +23,21 @@ export function TeamEvaluationPage() {
   const [evaluations, setEvaluations] = useState({});
   const [tasksList, setTasksList] = useState([]);
   const [saveState, setSaveState] = useState('loading');
+  // Participation per student and sprint, from their grade docs: { [sprint]: { [studentId]: points } }
+  const [participation, setParticipation] = useState({});
 
   useEffect(() => {
     getTasks().then(setTasksList);
+    getAllGrades()
+      .then(all => {
+        const bySprint = {};
+        all.filter(g => g.participationPoints !== undefined).forEach(g => {
+          const n = Number(String(g.sprint).replace(/\D/g, ''));
+          (bySprint[n] ??= {})[g.studentId] = g.participationPoints;
+        });
+        setParticipation(bySprint);
+      })
+      .catch(err => console.error('Error loading participation:', err));
     getTeamEvaluation(teamId)
       .then(saved => {
         setEvaluations(saved);
@@ -70,6 +83,21 @@ export function TeamEvaluationPage() {
 
   const handleScoreChange = (studentId, score) => {
     save({ rubric: teamGrades, students: { ...studentScores, [studentId]: score }, published });
+    // First time this student is graded this sprint: participation starts at the full 5
+    if (participation[sprint]?.[studentId] === undefined) handleParticipationChange(studentId, PARTICIPATION_ON_GRADING);
+  };
+
+  // Same field the grades page edits; everyone starts at 5 until lowered
+  const handleParticipationChange = async (studentId, points) => {
+    setParticipation(prev => ({ ...prev, [sprint]: { ...prev[sprint], [studentId]: points } }));
+    setSaveState('saving');
+    try {
+      await saveStudentGrades(studentId, `Sprint ${sprint}`, { participationPoints: points });
+      setSaveState('saved');
+    } catch (err) {
+      console.error('Error saving participation:', err);
+      setSaveState('error');
+    }
   };
 
   const gradedCount = teamStudents.filter(s => studentScores[s.id] !== undefined).length;
@@ -90,7 +118,7 @@ export function TeamEvaluationPage() {
   if (!team) return <div className="p-8">Equipo no encontrado.</div>;
 
   return (
-    <div className="container mx-auto p-4 md:p-8 max-w-4xl">
+    <div className="mx-auto max-w-4xl">
       <Button
         variant="ghost"
         className="mb-6 -ml-4 text-muted-foreground"
@@ -156,6 +184,7 @@ export function TeamEvaluationPage() {
         <h2 className="text-xl font-semibold mb-1">Evaluación Individual · Sprint {sprint}</h2>
         <p className="text-sm text-muted-foreground mb-4">
           El proyecto de cada alumno (50 pts del sprint) es su expo: cada punto de expo vale 5 pts. La rúbrica del equipo es guía y retroalimentación.
+          La participación está en 0 hasta que calificas: al poner la expo de un alumno se pone en 5, y la bajas si hace falta. La asistencia se calcula sola con las faltas.
         </p>
         <div className="space-y-4">
           {teamStudents.length === 0 ? (
@@ -168,6 +197,8 @@ export function TeamEvaluationPage() {
                 score={studentScores[student.id]}
                 projectScore={studentScores[student.id] !== undefined ? projectScore(studentScores[student.id]) : null}
                 onScoreChange={handleScoreChange}
+                participation={participation[sprint]?.[student.id] ?? DEFAULT_PARTICIPATION}
+                onParticipationChange={handleParticipationChange}
                 tasksList={tasksList}
                 currentSprint={sprint}
                 disabled={saveState === 'loading'}

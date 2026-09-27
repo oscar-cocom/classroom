@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Navigate } from 'react-router-dom';
-import { LayoutDashboard, GitBranch, CalendarCheck, Calculator, ShieldCheck, Loader2, AlertCircle, ChevronDown } from 'lucide-react';
+import { School, GitBranch, CalendarCheck, Calculator, ShieldCheck, Loader2, AlertCircle, ChevronDown } from 'lucide-react';
 
 const FEATURES = [
   { icon: GitBranch, title: 'Tareas revisadas desde GitHub', text: 'Ve qué entregaste, cuándo y cuántos puntos obtuviste.' },
@@ -56,11 +56,14 @@ export function LoginPage() {
           style={{ background: 'radial-gradient(60% 50% at 20% 10%, hsl(221 83% 53% / 0.45), transparent), radial-gradient(40% 40% at 90% 90%, hsl(199 89% 48% / 0.25), transparent)' }}
           aria-hidden="true"
         />
-        <div className="relative flex items-center gap-2 text-lg font-bold">
+        <div className="relative flex items-center gap-3">
           <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <LayoutDashboard className="h-5 w-5" aria-hidden="true" />
+            <School className="h-5 w-5" aria-hidden="true" />
           </span>
-          GestorEval
+          <div>
+            <p className="text-lg font-bold leading-tight">Mi Aula</p>
+            <p className="text-xs text-slate-400">by Profesor Oscar Cocom</p>
+          </div>
         </div>
 
         <div className="relative mt-10 lg:mt-auto max-w-md">

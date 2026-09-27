@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { Table } from '@/components/ui/table';
 import { Card, CardContent } from '@/components/ui/card';
 import { getAllGrades, getAllAttendanceRecords, saveStudentGrades, getTasks } from '@/services/firestoreApi';
 import { evaluateStudentTasks } from '@/services/githubApi';
@@ -6,9 +7,10 @@ import studentsData from '@/data/students.json';
 import { sprintOfDate, isUnexcusedAbsence, attendancePoints, DEFAULT_PARTICIPATION, RECOVERY_ABSENCES } from '@/lib/sprints';
 import { PROJECT_SPRINTS } from '@/lib/projectGrading';
 import { Badge } from '@/components/ui/badge';
+import { LoadingAnimation } from '@/components/atoms/LoadingAnimation';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
-import { RefreshCcw, ExternalLink, Pencil, Save, X, Search, Eye } from 'lucide-react';
+import { RefreshCcw, ExternalLink, Pencil, Save, X, Search, Eye, CheckCircle2 } from 'lucide-react';
 
 const round1 = n => Math.round(n * 10) / 10;
 
@@ -143,6 +145,18 @@ export function GradesPage() {
     }
   };
 
+  // Undo a hand correction: the next sync writes the automatic grade again
+  const handleUseAutomatic = async (studentId) => {
+    try {
+      await saveStudentGrades(studentId, sprintLabel, { taskManual: false });
+      updateLocalGrade(studentId, { taskManual: false });
+      setEditingId(null);
+    } catch (err) {
+      console.error("Error saving grades:", err);
+      alert("Hubo un error al guardar las calificaciones.");
+    }
+  };
+
   const rows = students
     .filter(s => s.name.toLowerCase().includes(searchTerm.toLowerCase()))
     .map(student => {
@@ -158,11 +172,15 @@ export function GradesPage() {
         projectPublished: g.projectPublished === true,
         attendance: attendancePoints(absenceCount),
         participation: g.participationPoints ?? DEFAULT_PARTICIPATION,
+        participationSet: g.participationPoints !== undefined,
         inRecovery: absenceCount >= RECOVERY_ABSENCES,
       };
       row.total = row.task === null ? null : round1(row.task + (row.project ?? 0) + row.attendance + row.participation);
+      // Tasks and project already graded (attendance always has a value); recovery is shown in red instead
+      row.complete = row.task !== null && row.project !== null && !row.inRecovery;
       return row;
     });
+  const completeCount = rows.filter(r => r.complete).length;
 
   const numberInput = (value, max, step, onChange, label) => (
     <input
@@ -176,15 +194,15 @@ export function GradesPage() {
 
   return (
     <div className="space-y-6">
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <header className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold">Calificaciones</h1>
           <p className="text-muted-foreground mt-1">
             Tareas 40 + Proyecto 50 + Asistencia 5 + Participación 5 = 100 pts por sprint.
           </p>
         </div>
-        <div className="flex items-center gap-2 w-full md:w-auto">
-          <div className="relative flex-1 md:min-w-[300px]">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full lg:w-auto">
+          <div className="relative flex-1 lg:min-w-[300px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
             <input
               type="text"
@@ -220,16 +238,24 @@ export function GradesPage() {
         ))}
       </nav>
 
+      {!loading && (
+        <p className="flex items-center gap-2 text-sm text-muted-foreground">
+          <span className="inline-block h-3 w-3 rounded-sm bg-green-100 border border-green-300" aria-hidden="true" />
+          En verde, los alumnos con tareas, proyecto y asistencia ya calificados:
+          <b className="text-foreground whitespace-nowrap">{completeCount} de {rows.length}</b>
+        </p>
+      )}
+
       <Card>
         <CardContent className="p-0">
           {loading ? (
-            <p className="p-6">Cargando datos...</p>
+            <LoadingAnimation label="Cargando calificaciones…" />
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm text-left">
-                <thead className="text-xs uppercase bg-muted/50 border-b">
+              <Table className="w-full text-sm text-left">
+                <thead className="text-xs uppercase bg-muted border-b">
                   <tr>
-                    <th scope="col" className="px-6 py-3">Alumno</th>
+                    <th scope="col" className="sticky left-0 z-10 bg-muted px-4 sm:px-6 py-3 min-w-[190px]">Alumno</th>
                     <th scope="col" className="px-4 py-3">Equipo</th>
                     <th scope="col" className="px-4 py-3 text-center">Faltas</th>
                     <th scope="col" className="px-4 py-3 text-center">Tareas /40</th>
@@ -253,8 +279,9 @@ export function GradesPage() {
                     const isEditing = editingId === student.id;
 
                     return (
-                      <tr key={student.id} className="border-b last:border-0 hover:bg-muted/30">
-                        <td className="px-6 py-4 font-medium">
+                      <tr key={student.id} className={`border-b last:border-0 transition-colors ${row.complete ? 'bg-green-50 hover:bg-green-100 dark:bg-green-950/30 dark:hover:bg-green-950/50' : row.inRecovery ? 'bg-red-50/60 hover:bg-red-50 dark:bg-red-950/20' : 'hover:bg-muted/30'}`}>
+                        {/* Name stays in view while the rest of the row scrolls on small screens */}
+                        <td className={`sticky left-0 z-10 px-4 sm:px-6 py-4 font-medium min-w-[190px] ${row.complete ? 'bg-green-50 dark:bg-green-950' : row.inRecovery ? 'bg-red-50 dark:bg-red-950' : 'bg-card'}`}>
                           <div className="flex items-center gap-2">
                             {student.name}
                             <a
@@ -283,7 +310,16 @@ export function GradesPage() {
                         <td className={`px-4 py-4 text-center text-lg ${row.inRecovery ? 'font-bold text-red-600' : ''}`}>{row.absences}</td>
 
                         <td className="px-4 py-4 text-center">
-                          {isEditing ? numberInput(temp.task, 40, 0.5, v => setTemp({ ...temp, task: v }), `Tareas de ${student.name}`) : (
+                          {isEditing ? (
+                            <div className="flex flex-col items-center gap-1">
+                              {numberInput(temp.task, 40, 0.5, v => setTemp({ ...temp, task: v }), `Tareas de ${student.name}`)}
+                              {row.taskManual && (
+                                <button type="button" onClick={() => handleUseAutomatic(student.id)} className="text-[10px] text-primary underline cursor-pointer">
+                                  Usar automática
+                                </button>
+                              )}
+                            </div>
+                          ) : (
                             <span className="font-bold" title={row.taskManual ? 'Ajustada a mano (la sincronización no la cambia)' : row.taskReason || "Sincroniza para ver detalles"}>
                               {row.task === null ? <span className="text-muted-foreground/60">—</span> : row.task}
                               {row.taskManual && <span className="block text-[10px] font-normal text-amber-700">a mano</span>}
@@ -307,16 +343,25 @@ export function GradesPage() {
 
                         <td className="px-4 py-4 text-center">
                           {isEditing ? numberInput(temp.participation, 5, 0.5, v => setTemp({ ...temp, participation: v }), `Participación de ${student.name}`) : (
-                            <Badge variant={row.participation === 5 ? "default" : row.participation >= 2.5 ? "secondary" : "destructive"}>
-                              {row.participation}
-                            </Badge>
+                            row.participationSet ? (
+                              <Badge variant={row.participation === 5 ? "default" : row.participation >= 2.5 ? "secondary" : "destructive"}>
+                                {row.participation}
+                              </Badge>
+                            ) : (
+                              <span className="text-muted-foreground" title="Se asigna al calificar la demo del equipo">
+                                0<span className="block text-[10px]">pendiente</span>
+                              </span>
+                            )
                           )}
                         </td>
 
                         <td className={`px-4 py-4 text-center font-bold ${row.inRecovery ? 'text-red-600' : 'text-primary'}`}>
                           {row.inRecovery ? 'Recuperación' : row.total === null ? '—' : (
                             <>
-                              {row.total}
+                              <span className={`inline-flex items-center gap-1 ${row.complete ? 'text-green-700 dark:text-green-400' : ''}`}>
+                                {row.complete && <CheckCircle2 className="w-4 h-4" aria-label="Completo" />}
+                                {row.total}
+                              </span>
                               {row.project === null && <span className="block text-[10px] font-normal text-muted-foreground">sin proyecto</span>}
                             </>
                           )}
@@ -344,13 +389,13 @@ export function GradesPage() {
                     );
                   })}
                 </tbody>
-              </table>
+              </Table>
             </div>
           )}
         </CardContent>
       </Card>
       <p className="text-xs text-muted-foreground">
-        Asistencia: 0–1 faltas = 5 · 2 faltas = 2.5 · 3 = 0 · {RECOVERY_ABSENCES} o más faltas sin justificar = recuperación. Con el lápiz editas tareas y participación; el proyecto se califica y publica en Equipos.
+        Asistencia: 0–1 faltas = 5 · 2 faltas = 2.5 · 3 = 0 · {RECOVERY_ABSENCES} o más faltas sin justificar = recuperación. La participación está en 0 hasta calificar la demo del equipo (en Equipos, junto a la expo, o con el lápiz). El proyecto se califica y publica en Equipos.
       </p>
     </div>
   );

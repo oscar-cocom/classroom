@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
 import { Outlet, Navigate, NavLink } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
+import { LoadingAnimation } from '@/components/atoms/LoadingAnimation';
 import { Button } from '@/components/ui/button';
-import { LayoutDashboard, LogOut, Menu, X, Users, BookOpen, CalendarCheck, GraduationCap, ClipboardList } from 'lucide-react';
+import { LogOut, Menu, X, Users, BookOpen, CalendarCheck, GraduationCap, ClipboardList, School } from 'lucide-react';
 
 export function DashboardLayout() {
   const { user, loading, logout } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center">Cargando...</div>;
+    return <LoadingAnimation fullScreen />;
   }
 
   if (!user) {
@@ -24,9 +25,12 @@ export function DashboardLayout() {
       
       {/* Mobile Navbar */}
       <div className="md:hidden flex items-center justify-between p-4 bg-background border-b z-20">
-        <div className="flex items-center gap-2 font-bold text-lg">
-          <LayoutDashboard className="w-5 h-5 text-primary" />
-          GestorEval
+        <div className="flex items-center gap-2 min-w-0">
+          <School className="w-6 h-6 shrink-0 text-primary" aria-hidden="true" />
+          <div className="min-w-0">
+            <p className="font-bold text-lg leading-tight whitespace-nowrap">Mi Aula</p>
+            <p className="text-xs text-muted-foreground leading-tight whitespace-nowrap">by Profesor Oscar Cocom</p>
+          </div>
         </div>
         <Button variant="ghost" size="icon" onClick={toggleSidebar}>
           {isSidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -46,9 +50,14 @@ export function DashboardLayout() {
         fixed md:sticky top-0 left-0 z-20 h-screen w-64 bg-background border-r flex flex-col transition-transform duration-300 ease-in-out
         ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
       `}>
-        <div className="p-6 hidden md:flex items-center gap-2 font-bold text-xl">
-          <LayoutDashboard className="w-6 h-6 text-primary" />
-          GestorEval
+        <div className="p-6 hidden md:flex items-center gap-3">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+            <School className="w-5 h-5" aria-hidden="true" />
+          </span>
+          <div>
+            <p className="font-bold text-xl leading-tight">Mi Aula</p>
+            <p className="text-xs text-muted-foreground">by Profesor Oscar Cocom</p>
+          </div>
         </div>
         
         <div className="px-4 py-2 border-b md:border-none mb-4 flex items-center gap-3">

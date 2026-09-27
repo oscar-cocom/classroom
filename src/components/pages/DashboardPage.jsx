@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Table } from '@/components/ui/table';
 import { TeamCard } from '@/components/molecules/TeamCard';
 import teamsData from '@/data/teams.json';
 import studentsData from '@/data/students.json';
@@ -8,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Plus, Edit, Trash2 } from 'lucide-react';
 import { CreateTaskModal } from '@/components/organisms/CreateTaskModal';
 import { CodeBlock } from '@/components/atoms/CodeBlock';
+import { LoadingAnimation } from '@/components/atoms/LoadingAnimation';
 
 export function DashboardPage() {
   const [tasks, setTasks] = useState([]);
@@ -50,16 +52,16 @@ export function DashboardPage() {
   };
 
   return (
-    <div className="container mx-auto p-4 md:p-8">
+    <div className="mx-auto">
       <header className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight">Gestor de Evaluaciones</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Mi Aula</h1>
         <p className="text-muted-foreground mt-2">
           Programación Web (AEB-1055) - Dashboard
         </p>
       </header>
 
       <div className="mb-12">
-        <div className="flex justify-between items-center mb-4">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
           <h2 className="text-2xl font-bold">Registro de Tareas Activas</h2>
           <Button onClick={() => setIsModalOpen(true)} className="gap-2">
             <Plus className="w-4 h-4" /> Agregar Tarea
@@ -68,9 +70,9 @@ export function DashboardPage() {
         
         <div className="bg-card text-card-foreground border rounded-lg overflow-hidden shadow-sm">
           {loading ? (
-            <div className="p-8 text-center text-muted-foreground">Cargando tareas...</div>
+            <LoadingAnimation label="Cargando tareas…" />
           ) : (
-            <table className="w-full text-sm text-left">
+            <Table className="w-full text-sm text-left">
               <thead className="bg-muted/50 border-b">
                 <tr>
                   <th className="px-6 py-3 font-semibold">Sprint</th>
@@ -114,7 +116,7 @@ export function DashboardPage() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </Table>
           )}
         </div>
       </div>

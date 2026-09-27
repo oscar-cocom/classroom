@@ -2,7 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { Badge } from "@/components/ui/badge";
 import { evaluateStudentTasks } from '@/services/githubApi';
 
-export function StudentStatusRow({ student, score, projectScore = null, onScoreChange, tasksList = [], currentSprint = 1, disabled = false }) {
+const PARTICIPATION_OPTIONS = [5, 4.5, 4, 3.5, 3, 2.5, 2, 1.5, 1, 0.5, 0];
+
+export function StudentStatusRow({ student, score, projectScore = null, onScoreChange, participation, onParticipationChange, tasksList = [], currentSprint = 1, disabled = false }) {
   const [taskStatus, setTaskStatus] = useState({ loading: true, error: false, tasks: {} });
 
   useEffect(() => {
@@ -68,11 +70,11 @@ export function StudentStatusRow({ student, score, projectScore = null, onScoreC
         )}
       </div>
 
-      <div className="flex flex-col gap-1 min-w-[140px]">
-        <label className="flex items-center gap-2 text-sm">
+      <div className="flex flex-col gap-2 min-w-[190px]">
+        <label className="flex items-center justify-between gap-2 text-sm">
           Expo:
           <select 
-            className="p-1 border rounded w-full bg-background text-foreground cursor-pointer disabled:cursor-not-allowed"
+            className="p-1 border rounded w-[140px] bg-background text-foreground cursor-pointer disabled:cursor-not-allowed"
             value={score ?? ''} 
             disabled={disabled}
             onChange={(e) => onScoreChange(student.id, parseInt(e.target.value))}
@@ -84,7 +86,22 @@ export function StudentStatusRow({ student, score, projectScore = null, onScoreC
           </select>
         </label>
         {projectScore !== null && (
-          <span className="text-xs text-muted-foreground">Proyecto: <b className="text-foreground">{Math.round(projectScore * 5) / 10} / 50 pts</b></span>
+          <span className="text-xs text-muted-foreground text-right">Proyecto: <b className="text-foreground">{Math.round(projectScore * 5) / 10} / 50 pts</b></span>
+        )}
+        {onParticipationChange && (
+          <label className="flex items-center justify-between gap-2 text-sm">
+            Participación:
+            <select
+              className={`p-1 border rounded w-[140px] bg-background cursor-pointer disabled:cursor-not-allowed ${participation < 5 ? 'border-amber-400 text-amber-900' : 'text-foreground'}`}
+              value={participation}
+              disabled={disabled}
+              onChange={(e) => onParticipationChange(student.id, parseFloat(e.target.value))}
+            >
+              {PARTICIPATION_OPTIONS.map(n => (
+                <option key={n} value={n}>{n} / 5 pts</option>
+              ))}
+            </select>
+          </label>
         )}
       </div>
     </div>

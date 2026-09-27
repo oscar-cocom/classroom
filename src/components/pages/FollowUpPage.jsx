@@ -1,10 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { Table } from '@/components/ui/table';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { getFollowUps, saveFollowUp, deleteFollowUp } from '@/services/firestoreApi';
 import { evaluateStudentTasks } from '@/services/githubApi';
 import studentsData from '@/data/students.json';
+import { LoadingAnimation } from '@/components/atoms/LoadingAnimation';
 import {
   ClipboardList, RefreshCcw, Copy, Check, ExternalLink, Plus, Trash2,
   UserX, FolderX, FileWarning, MessageSquareText, CircleCheck, Clock,
@@ -142,7 +144,7 @@ export function FollowUpPage() {
 
   return (
     <div className="space-y-6">
-      <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+      <header className="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
             <ClipboardList className="w-7 h-7 text-primary" aria-hidden="true" />
@@ -152,7 +154,7 @@ export function FollowUpPage() {
             Alumnos a los que hay que avisar: sin cuenta, sin repo de tareas o sin tareas subidas.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={runScan} disabled={scanning} className="cursor-pointer">
             <RefreshCcw className={`w-4 h-4 mr-2 ${scanning ? 'animate-spin motion-reduce:animate-none' : ''}`} aria-hidden="true" />
             {scanning ? `Revisando… ${scanProgress}%` : 'Revisar repos'}
@@ -202,10 +204,10 @@ export function FollowUpPage() {
 
       <Card>
         <CardContent className="p-0 overflow-x-auto">
-          <table className="w-full text-sm text-left">
-            <thead className="text-xs uppercase bg-muted/50 border-b">
+          <Table className="w-full text-sm text-left">
+            <thead className="text-xs uppercase bg-muted border-b">
               <tr>
-                <th scope="col" className="px-4 py-3">Alumno</th>
+                <th scope="col" className="sticky left-0 z-10 bg-muted px-4 py-3 min-w-[170px]">Alumno</th>
                 <th scope="col" className="px-4 py-3">Problema</th>
                 <th scope="col" className="px-4 py-3">Estado</th>
                 <th scope="col" className="px-4 py-3 min-w-[260px]">Nota</th>
@@ -218,7 +220,7 @@ export function FollowUpPage() {
                 const IssueIcon = issueInfo?.icon;
                 return (
                   <tr key={student.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors align-top">
-                    <td className="px-4 py-3">
+                    <td className="sticky left-0 z-10 bg-card px-4 py-3 min-w-[170px]">
                       <div className="font-medium">{student.name}</div>
                       <div className="text-xs text-muted-foreground">
                         {student.teamId}{student.githubUsername ? ` · @${student.githubUsername}` : ''}
@@ -285,12 +287,12 @@ export function FollowUpPage() {
               {!visibleRows.length && (
                 <tr>
                   <td colSpan={5} className="px-4 py-10 text-center text-muted-foreground">
-                    {scanning ? 'Revisando repositorios…' : 'No hay alumnos en esta vista.'}
+                    {scanning ? <LoadingAnimation label={`Revisando repositorios… ${scanProgress}%`} /> : 'No hay alumnos en esta vista.'}
                   </td>
                 </tr>
               )}
             </tbody>
-          </table>
+          </Table>
         </CardContent>
       </Card>
 
