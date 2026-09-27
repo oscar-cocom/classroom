@@ -70,6 +70,12 @@ ${studentMap}
     match /evaluations/{teamId} {
       allow read, write: if isTeacher();
     }
+
+    // Public landing page data (which teams presented their demo); no grades or names
+    match /public/{docId} {
+      allow read: if true;
+      allow write: if isTeacher();
+    }
   }
 }
 `;

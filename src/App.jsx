@@ -23,6 +23,7 @@ function App() {
     <AuthProvider>
       <Router>
         <Routes>
+          <Route path="/" element={<LoginPage />} />
           <Route path="/login" element={<LoginPage />} />
           
           <Route path="/dashboard" element={<DashboardLayout />}>
@@ -38,7 +39,7 @@ function App() {
             <Route path="my-grades" element={<StudentDashboardPage />} />
           </Route>
           
-          <Route path="*" element={<Navigate to="/login" replace />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Router>
       <UpdateBanner />

@@ -4,7 +4,7 @@ import { TeamGradingPanel } from '@/components/organisms/TeamGradingPanel';
 import { StudentStatusRow } from '@/components/molecules/StudentStatusRow';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, Eye, EyeOff } from 'lucide-react';
-import { getTasks, getTeamEvaluation, saveTeamEvaluation, saveStudentGrades, getAllGrades } from '@/services/firestoreApi';
+import { getTasks, getTeamEvaluation, saveTeamEvaluation, saveStudentGrades, getAllGrades, setTeamDemoPublished } from '@/services/firestoreApi';
 import { DEFAULT_PARTICIPATION, PARTICIPATION_ON_GRADING } from '@/lib/sprints';
 import { PROJECT_SPRINTS, rubricPoints, projectScore } from '@/lib/projectGrading';
 
@@ -70,6 +70,8 @@ export function TeamEvaluationPage() {
           projectExpo: next.students[s.id],
           projectPublished: next.published === true,
         })));
+      // Public landing page shows which teams already presented
+      if (next.published !== published) await setTeamDemoPublished(teamId, sprint, next.published === true);
       setSaveState('saved');
     } catch (err) {
       console.error('Error saving team evaluation:', err);

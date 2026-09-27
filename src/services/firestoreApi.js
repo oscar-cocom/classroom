@@ -207,3 +207,23 @@ export async function saveTeamEvaluation(teamId, sprint, { rubric, students, pub
     sprints: { [sprint]: { rubric, students, published, updatedAt: new Date().toISOString() } }
   }, { merge: true });
 }
+
+/**
+ * PUBLIC SHOWCASE: which teams already presented each sprint's demo, for the
+ * public landing page. Holds no names or grades; anyone can read it, only the
+ * teacher writes it (see firestore.rules).
+ * Document public/showcase: { teams: { amazon: { "1": true } } }
+ */
+export async function getShowcase() {
+  if (!db) return {};
+  const docSnap = await getDoc(doc(db, 'public', 'showcase'));
+  return docSnap.exists() ? docSnap.data().teams || {} : {};
+}
+
+export async function setTeamDemoPublished(teamId, sprint, published) {
+  if (!db) return;
+  await setDoc(doc(db, 'public', 'showcase'), {
+    teams: { [teamId]: { [sprint]: published } },
+    updatedAt: new Date().toISOString()
+  }, { merge: true });
+}
