@@ -11,6 +11,7 @@ import { inAppBrowserName, isAndroid, chromeIntentUrl } from '@/lib/browser';
 import teamsData from '@/data/teams.json';
 import studentsData from '@/data/students.json';
 import doodles from '@/assets/landing-doodles.webp';
+import tecDoodles from '@/assets/logo-tec-doodles.webp';
 
 // Course calendar (ADR-002). Dates are YYYY-MM-DD in Cancún time.
 const SPRINTS = [
@@ -226,11 +227,11 @@ export function LoginPage() {
             <div className="relative mx-auto w-full max-w-md lg:max-w-none">
               <div className="absolute -inset-3 rotate-2 rounded-3xl bg-primary/15" aria-hidden="true" />
               <img
-                src={doodles}
-                alt="Dibujos de programación web con una pareja corriendo, un sandbox, un sedán y una camioneta"
+                src={tecDoodles}
+                alt="Logo del Instituto Tecnológico de Cancún, Programación Web, rodeado de dibujos de programación"
                 className="relative w-full -rotate-1 rounded-3xl border-2 border-slate-950 bg-white shadow-xl"
-                width="1290"
-                height="1290"
+                width="640"
+                height="640"
               />
               <div className="absolute -bottom-4 left-4 right-4 sm:left-auto sm:right-6 rounded-xl border bg-background/95 px-4 py-3 shadow-lg backdrop-blur">
                 <p className="text-xs text-muted-foreground">Ahora mismo</p>
