@@ -4,13 +4,10 @@ import { TeamGradingPanel } from '@/components/organisms/TeamGradingPanel';
 import { StudentStatusRow } from '@/components/molecules/StudentStatusRow';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft } from 'lucide-react';
+import { getTasks, getTeamEvaluation, saveTeamEvaluation } from '@/services/firestoreApi';
 
 import teamsData from '@/data/teams.json';
 import studentsData from '@/data/students.json';
-
-// In a real app, this would connect to Firebase db
-// import { doc, onSnapshot, setDoc } from "firebase/firestore";
-// import { db } from "@/lib/firebase";
 
 export function TeamEvaluationPage() {
   const { teamId } = useParams();
@@ -22,39 +19,52 @@ export function TeamEvaluationPage() {
   const [teamGrades, setTeamGrades] = useState({});
   const [studentScores, setStudentScores] = useState({});
   const [tasksList, setTasksList] = useState([]);
+  const [saveState, setSaveState] = useState({ status: 'loading', at: null });
 
   useEffect(() => {
-    async function loadTasks() {
-      const { getTasks } = await import('@/services/firestoreApi');
-      const fetched = await getTasks();
-      setTasksList(fetched);
-    }
-    loadTasks();
-    // Here we would setup a Firebase listener for the team's grades
-    // const unsub = onSnapshot(doc(db, "evaluations", teamId), (doc) => {
-    //   if (doc.exists()) {
-    //     setTeamGrades(doc.data().rubric || {});
-    //     setStudentScores(doc.data().students || {});
-    //   }
-    // });
-    // return () => unsub();
+    getTasks().then(setTasksList);
+    getTeamEvaluation(teamId)
+      .then(saved => {
+        setTeamGrades(saved?.rubric || {});
+        setStudentScores(saved?.students || {});
+        setSaveState({ status: 'idle', at: saved?.updatedAt || null });
+      })
+      .catch(err => {
+        console.error('Error loading team evaluation:', err);
+        setSaveState({ status: 'error', at: null });
+      });
   }, [teamId]);
+
+  const save = async (data) => {
+    setSaveState(s => ({ ...s, status: 'saving' }));
+    try {
+      await saveTeamEvaluation(teamId, data);
+      setSaveState({ status: 'saved', at: new Date().toISOString() });
+    } catch (err) {
+      console.error('Error saving team evaluation:', err);
+      setSaveState(s => ({ ...s, status: 'error' }));
+    }
+  };
 
   const handleGradeChange = (rubricId, checked) => {
     const newGrades = { ...teamGrades, [rubricId]: checked };
     setTeamGrades(newGrades);
-    
-    // Save to Firebase
-    // setDoc(doc(db, "evaluations", teamId), { rubric: newGrades }, { merge: true });
+    save({ rubric: newGrades });
   };
 
   const handleScoreChange = (studentId, score) => {
     const newScores = { ...studentScores, [studentId]: score };
     setStudentScores(newScores);
-
-    // Save to Firebase
-    // setDoc(doc(db, "evaluations", teamId), { students: newScores }, { merge: true });
+    save({ students: newScores });
   };
+
+  const saveMessage = {
+    loading: 'Cargando evaluación guardada…',
+    saving: 'Guardando…',
+    error: 'No se pudo guardar. Revisa tu conexión y vuelve a marcar el cambio.',
+  }[saveState.status] || (saveState.at
+    ? `Guardado ${new Date(saveState.at).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' })}`
+    : 'Sin cambios guardados todavía');
 
   if (!team) return <div className="p-8">Equipo no encontrado.</div>;
 
@@ -63,7 +73,7 @@ export function TeamEvaluationPage() {
       <Button 
         variant="ghost" 
         className="mb-6 -ml-4 text-muted-foreground"
-        onClick={() => navigate('/')}
+        onClick={() => navigate('/dashboard/teams')}
       >
         <ChevronLeft className="mr-2 w-4 h-4" /> Volver al Dashboard
       </Button>
@@ -71,6 +81,12 @@ export function TeamEvaluationPage() {
       <header className="mb-8">
         <h1 className="text-3xl font-bold">{team.name}</h1>
         <p className="text-muted-foreground">Repositorio: {team.repoName}</p>
+        <p
+          className={`text-sm mt-2 ${saveState.status === 'error' ? 'text-destructive font-medium' : 'text-muted-foreground'}`}
+          aria-live="polite"
+        >
+          {saveMessage}
+        </p>
       </header>
 
       <TeamGradingPanel grades={teamGrades} onGradeChange={handleGradeChange} />

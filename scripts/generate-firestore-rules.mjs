@@ -64,6 +64,10 @@ ${studentMap}
     match /followups/{studentId} {
       allow read, write: if isTeacher();
     }
+
+    match /evaluations/{teamId} {
+      allow read, write: if isTeacher();
+    }
   }
 }
 `;

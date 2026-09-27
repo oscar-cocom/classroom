@@ -165,3 +165,21 @@ export async function deleteFollowUp(studentId) {
   if (!db) return;
   await deleteDoc(doc(FOLLOWUPS_COL, studentId));
 }
+
+/**
+ * TEAM EVALUATIONS: project rubric and individual expo scores per team.
+ * One document per team: { rubric: { func: true, ... }, students: { s1: 8, ... }, updatedAt }
+ */
+export async function getTeamEvaluation(teamId) {
+  if (!db) return null;
+  const docSnap = await getDoc(doc(db, 'evaluations', teamId));
+  return docSnap.exists() ? docSnap.data() : null;
+}
+
+export async function saveTeamEvaluation(teamId, data) {
+  if (!db) return;
+  await setDoc(doc(db, 'evaluations', teamId), {
+    ...data,
+    updatedAt: new Date().toISOString()
+  }, { merge: true });
+}
