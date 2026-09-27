@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth';
 import { auth, githubProvider } from '@/lib/firebase';
+import teacherIds from '@/data/teachers.json';
 
 const AuthContext = createContext({});
 
@@ -9,9 +10,6 @@ export const useAuth = () => useContext(AuthContext);
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-
-  // The teacher's username to grant admin privileges
-  const teacherUsername = import.meta.env.VITE_TEACHER_GITHUB_USERNAME || 'oscar-cocom';
 
   useEffect(() => {
     if (!auth) {
@@ -32,7 +30,8 @@ export const AuthProvider = ({ children }) => {
           photoURL: currentUser.photoURL,
           githubUsername,
           githubId,
-          role: (githubUsername && githubUsername.toLowerCase() === teacherUsername.toLowerCase()) ? 'teacher' : 'student'
+          // Same GitHub ids the Firestore rules and the GitHub proxy trust (src/data/teachers.json)
+          role: githubId && teacherIds.includes(githubId) ? 'teacher' : 'student'
         });
       } else {
         setUser(null);
@@ -41,7 +40,7 @@ export const AuthProvider = ({ children }) => {
     });
 
     return () => unsubscribe();
-  }, [teacherUsername]);
+  }, []);
 
   const loginWithGithub = async () => {
     try {

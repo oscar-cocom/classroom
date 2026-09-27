@@ -52,8 +52,10 @@ ${studentMap}
       allow write: if isTeacher();
     }
 
+    // Grade ids are "<studentId>_Sprint<n>": a student may also read their own
+    // ids before the document exists, which ownsRecord() alone can't allow
     match /grades/{docId} {
-      allow read: if isTeacher() || ownsRecord();
+      allow read: if isTeacher() || ownsRecord() || (isStudent() && docId.matches(myStudentId() + '_Sprint[0-9]+'));
       allow write: if isTeacher();
     }
 

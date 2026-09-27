@@ -16,6 +16,8 @@ let app;
 let db;
 let auth;
 const githubProvider = new GithubAuthProvider();
+// Ask GitHub which account to use instead of silently reusing the last one
+githubProvider.setCustomParameters({ prompt: 'select_account' });
 
 try {
   app = initializeApp(firebaseConfig);

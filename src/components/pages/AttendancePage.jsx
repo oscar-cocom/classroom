@@ -1,56 +1,54 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { getStudents, saveAttendance, getAttendanceByDate, saveStudent } from '@/services/firestoreApi';
+import { saveAttendance, getAttendanceByDate } from '@/services/firestoreApi';
 import studentsData from '@/data/students.json';
-import { CheckCircle2, XCircle, Database, Calendar as CalendarIcon } from 'lucide-react';
+import { CheckCircle2, XCircle, FileCheck2, Calendar as CalendarIcon } from 'lucide-react';
+import { localDateString } from '@/lib/sprints';
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 import './CalendarStyles.css'; // We will create this for dark mode support
 
 export function AttendancePage() {
-  const [students, setStudents] = useState([]);
+  // students.json is the single roster used by every page, the rules and the GitHub proxy
+  const students = studentsData;
   const [attendance, setAttendance] = useState({});
   const [date, setDate] = useState(new Date());
   const [loading, setLoading] = useState(true);
-  const [importing, setImporting] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
 
-  // Format date as YYYY-MM-DD for consistency
-  const dateStr = date.toISOString().split('T')[0];
-
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      let dbStudents = await getStudents();
-      // Fallback to local json if firestore is empty
-      if (dbStudents.length === 0) {
-        dbStudents = studentsData;
-      }
-      setStudents(dbStudents);
-
-      const todayAttendance = await getAttendanceByDate(dateStr);
-      const attendanceMap = {};
-      todayAttendance.forEach(a => {
-        attendanceMap[a.studentId] = a.isPresent;
-      });
-      setAttendance(attendanceMap);
-    } catch (err) {
-      console.error("Error loading attendance:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Format date as YYYY-MM-DD in local time
+  const dateStr = localDateString(date);
 
   useEffect(() => {
+    // Ignore a slow response for a date the teacher already moved away from
+    let current = true;
+    async function loadData() {
+      setLoading(true);
+      try {
+        const dayAttendance = await getAttendanceByDate(dateStr);
+        if (!current) return;
+        const attendanceMap = {};
+        dayAttendance.forEach(a => {
+          attendanceMap[a.studentId] = a.isPresent ? 'present' : a.justified ? 'justified' : 'absent';
+        });
+        setAttendance(attendanceMap);
+      } catch (err) {
+        console.error("Error loading attendance:", err);
+      } finally {
+        if (current) setLoading(false);
+      }
+    }
     loadData();
+    return () => { current = false; };
   }, [dateStr]);
 
-  const handleMarkAttendance = async (studentId, isPresent) => {
+  // status: 'present' | 'absent' | 'justified'
+  const handleMarkAttendance = async (studentId, status) => {
     // Optimistic update
-    setAttendance(prev => ({ ...prev, [studentId]: isPresent }));
+    setAttendance(prev => ({ ...prev, [studentId]: status }));
     try {
-      await saveAttendance(dateStr, studentId, isPresent);
+      await saveAttendance(dateStr, studentId, status === 'present', status === 'justified');
     } catch (error) {
       console.error("Error saving attendance:", error);
       // Revert if error
@@ -60,23 +58,6 @@ export function AttendancePage() {
         return newObj;
       });
       alert("Error al guardar en Firebase. Verifica que Firestore esté habilitado.");
-    }
-  };
-
-  const handleImportStudents = async () => {
-    if (!confirm("¿Seguro que deseas importar los 36 alumnos de tu archivo local a la Base de Datos?")) return;
-    setImporting(true);
-    try {
-      for (const student of studentsData) {
-        await saveStudent(student);
-      }
-      alert("¡Importación exitosa! Todos los alumnos están ahora en Firestore.");
-      loadData(); // Reload from db
-    } catch (error) {
-      console.error("Error importing:", error);
-      alert("Hubo un error al importar. Revisa la consola.");
-    } finally {
-      setImporting(false);
     }
   };
 
@@ -91,12 +72,6 @@ export function AttendancePage() {
         </div>
         
         <div className="flex items-center gap-3">
-          {/* Botón de importación temporal */}
-          <Button variant="outline" onClick={handleImportStudents} disabled={importing}>
-            <Database className="w-4 h-4 mr-2" />
-            {importing ? "Importando..." : "Importar a BD"}
-          </Button>
-          
           {/* Selector de fecha con React Calendar */}
           <div className="relative">
             <Button 
@@ -146,19 +121,31 @@ export function AttendancePage() {
                         <span className="w-64 truncate">{student.name}</span>
                         <div className="flex gap-2">
                           <Button 
-                            variant={attendance[student.id] === true ? "default" : "outline"}
+                            variant={attendance[student.id] === 'present' ? "default" : "outline"}
                             size="sm"
-                            className={attendance[student.id] === true ? "bg-green-600 hover:bg-green-700" : ""}
-                            onClick={() => handleMarkAttendance(student.id, true)}
+                            className={attendance[student.id] === 'present' ? "bg-green-600 hover:bg-green-700" : ""}
+                            aria-pressed={attendance[student.id] === 'present'}
+                            onClick={() => handleMarkAttendance(student.id, 'present')}
                           >
                             <CheckCircle2 className="w-4 h-4 mr-2" /> Presente
                           </Button>
                           <Button 
-                            variant={attendance[student.id] === false ? "destructive" : "outline"}
+                            variant={attendance[student.id] === 'absent' ? "destructive" : "outline"}
                             size="sm"
-                            onClick={() => handleMarkAttendance(student.id, false)}
+                            aria-pressed={attendance[student.id] === 'absent'}
+                            onClick={() => handleMarkAttendance(student.id, 'absent')}
                           >
                             <XCircle className="w-4 h-4 mr-2" /> Falta
+                          </Button>
+                          <Button 
+                            variant="outline"
+                            size="sm"
+                            className={attendance[student.id] === 'justified' ? "bg-amber-100 border-amber-400 text-amber-900 hover:bg-amber-200" : ""}
+                            aria-pressed={attendance[student.id] === 'justified'}
+                            title="Falta con justificante: queda registrada pero no cuenta"
+                            onClick={() => handleMarkAttendance(student.id, 'justified')}
+                          >
+                            <FileCheck2 className="w-4 h-4 mr-2" /> Justificada
                           </Button>
                         </div>
                       </td>

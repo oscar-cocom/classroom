@@ -1,25 +1,19 @@
 import React from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import { RUBRIC_ITEMS, rubricPoints } from '@/lib/projectGrading';
 
-const RUBRIC_ITEMS = [
-  { id: "func", label: "Funcionalidades terminadas", points: 4 },
-  { id: "demo", label: "Demo funciona en vivo sin errores", points: 2 },
-  { id: "repo", label: "Repo con commits de todos", points: 2 },
-  { id: "scrum", label: "Tablero Scrum al día", points: 1 },
-  { id: "po", label: "Presentación clara del PO", points: 1 }
-];
-
-export function TeamGradingPanel({ grades, onGradeChange }) {
-  const totalScore = RUBRIC_ITEMS.reduce((sum, item) => {
-    return sum + (grades[item.id] ? item.points : 0);
-  }, 0);
+export function TeamGradingPanel({ grades, onGradeChange, disabled = false }) {
+  const totalScore = rubricPoints(grades);
 
   return (
     <Card className="mb-8 border-primary/20">
       <CardHeader className="bg-primary/5 rounded-t-lg">
         <CardTitle className="flex justify-between items-center">
-          <span>Rúbrica del Proyecto (Equipo)</span>
+          <span>
+            Rúbrica del Proyecto (Equipo)
+            <span className="block text-sm font-normal text-muted-foreground mt-1">Guía y retroalimentación: no suma puntos, te ayuda a decidir la expo de cada alumno.</span>
+          </span>
           <span className="text-2xl font-bold text-primary">{totalScore} / 10 pts</span>
         </CardTitle>
       </CardHeader>
@@ -30,7 +24,8 @@ export function TeamGradingPanel({ grades, onGradeChange }) {
               <Checkbox 
                 id={item.id}
                 checked={grades[item.id] || false}
-                onCheckedChange={(checked) => onGradeChange(item.id, checked)}
+                onCheckedChange={(checked) => onGradeChange(item.id, checked === true)}
+                disabled={disabled}
                 className="w-5 h-5"
               />
               <label 

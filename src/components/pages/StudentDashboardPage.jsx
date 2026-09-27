@@ -6,14 +6,17 @@ import { getStudentAttendance, getStudentGrades, getTasks } from '@/services/fir
 import { evaluateStudentTasks } from '@/services/githubApi';
 import { BookOpen, CalendarX2, CheckCircle2, Trophy, Clock, XCircle, AlertTriangle } from 'lucide-react';
 import studentsData from '@/data/students.json';
-import { sprintOfDate, participationFromAbsences } from '@/lib/sprints';
+import { sprintOfDate, isUnexcusedAbsence, attendancePoints, DEFAULT_PARTICIPATION, RECOVERY_ABSENCES, RECOVERY_DATES } from '@/lib/sprints';
 
 export function StudentDashboardPage() {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const [studentInfo, setStudentInfo] = useState(null);
   const [attendance, setAttendance] = useState([]);
+  // Saved grades per sprint (project score comes from the team evaluation page)
+  const [savedGrades, setSavedGrades] = useState({});
   const [taskMetrics, setTaskMetrics] = useState(null);
   const [sprints, setSprints] = useState([1]);
+  const [tasks, setTasks] = useState([]);
   const [sprint, setSprint] = useState(1);
   const [loading, setLoading] = useState(true);
 
@@ -36,9 +39,14 @@ export function StudentDashboardPage() {
 
           // Evaluate every sprint's tasks; the page shows one sprint at a time
           const allTasks = await getTasks();
+          setTasks(allTasks);
           const githubResult = await evaluateStudentTasks(student.repoName, allTasks);
           setTaskMetrics(githubResult);
-          setSprints([...new Set(allTasks.map(t => Number(t.sprint)))].sort((a, b) => a - b));
+          const sprintList = [...new Set(allTasks.map(t => Number(t.sprint)))].sort((a, b) => a - b);
+          setSprints(sprintList);
+
+          const gradeDocs = await Promise.all(sprintList.map(n => getStudentGrades(student.id, `Sprint ${n}`)));
+          setSavedGrades(Object.fromEntries(sprintList.map((n, i) => [n, gradeDocs[i]])));
         }
       } catch (err) {
         console.error("Error loading student dashboard:", err);
@@ -58,41 +66,67 @@ export function StudentDashboardPage() {
         <p className="text-muted-foreground">
           No se encontró ningún estudiante asociado a la cuenta de GitHub <b>{user.githubUsername}</b>.
         </p>
+        <p className="text-sm text-muted-foreground mt-4">
+          Si entraste con otra cuenta, cierra sesión aquí y también en{' '}
+          <a href="https://github.com/logout" target="_blank" rel="noreferrer" className="underline hover:text-foreground">github.com</a>,
+          y vuelve a entrar con la cuenta que usas en la clase.
+        </p>
+        <button
+          type="button"
+          onClick={logout}
+          className="mt-4 inline-flex items-center justify-center rounded-md border px-4 py-2 text-sm font-medium hover:bg-muted transition-colors cursor-pointer"
+        >
+          Cerrar sesión y usar otra cuenta
+        </button>
       </div>
     );
   }
 
   // Task grade (0-100) of the sprint being viewed
   const sprintResults = Object.values(taskMetrics?.tasks || {}).filter(t => Number(t.taskInfo.sprint) === sprint);
-  const sprintMax = sprintResults.reduce((sum, t) => sum + Number(t.taskInfo.maxScore), 0);
+  // Out of every task of the sprint, so a task GitHub failed to check never inflates the grade
+  const sprintMax = tasks.filter(t => Number(t.sprint) === sprint).reduce((sum, t) => sum + Number(t.maxScore), 0);
+  const tasksFailed = taskMetrics?.error === true;
   // Absences only count toward the sprint whose dates they fall in
-  const absences = attendance.filter(a => !a.isPresent && sprintOfDate(a.date) === sprint).length;
-  const grades = {
-    project: '-', // Pendiente
-    participation: participationFromAbsences(absences),
-    task: sprintMax > 0
-      ? Math.round((sprintResults.reduce((sum, t) => sum + t.score, 0) / sprintMax) * 100)
-      : '-',
-  };
+  const sprintAttendance = attendance.filter(a => sprintOfDate(a.date) === sprint);
+  const absences = sprintAttendance.filter(isUnexcusedAbsence).length;
+  const justifiedAbsences = sprintAttendance.filter(a => !a.isPresent && a.justified).length;
+  const saved = savedGrades[sprint];
+  // The teacher publishes each sprint's project grades from the team page; the
+  // teacher previewing a student sees them before that
+  const hasProject = saved?.projectScore !== undefined && saved?.projectScore !== null
+    && (saved.projectPublished === true || user?.role === 'teacher');
+  // Grades edited by hand on the grades page have no expo breakdown
+  const hasBreakdown = hasProject && saved.projectExpo !== undefined;
 
-  // Temporary flag to avoid scaring students while teacher adjusts logic
-  const HIDE_FAIL_WARNINGS = true;
-  
-  const isFailedByAbsences = !HIDE_FAIL_WARNINGS && absences >= 4;
+  // Everything below is in sprint points: tasks 40 + project 50 + attendance 5 + participation 5
+  const round1 = n => Math.round(n * 10) / 10;
+  // A task grade the teacher corrected by hand on the grades page wins over the live check
+  const taskManual = saved?.taskManual === true && saved?.taskScore !== undefined;
+  const taskPercent = taskManual
+    ? saved.taskScore
+    : sprintMax > 0 && !tasksFailed ? (sprintResults.reduce((sum, t) => sum + t.score, 0) / sprintMax) * 100 : null;
+  const points = {
+    task: taskPercent === null ? null : round1(taskPercent * 0.4),
+    // Project: the student's own expo, 5 pts per expo point (see lib/projectGrading.js)
+    project: hasProject ? round1(saved.projectScore * 0.5) : null,
+    attendance: attendancePoints(absences),
+    // Everyone starts with full participation; the teacher lowers it on the grades page
+    participation: saved?.participationPoints ?? DEFAULT_PARTICIPATION,
+  };
+  const fmt = n => (n === null ? '-' : String(n));
+
+  // Too many unexcused absences: the sprint goes to recovery instead of an ordinary grade
+  const isFailedByAbsences = absences >= RECOVERY_ABSENCES;
   
   let finalGradeDisplay = '-';
   let partialNote = null;
   if (isFailedByAbsences) {
-    finalGradeDisplay = "EXAMEN";
-  } else if (grades.task !== '-' && grades.project !== '-' && grades.participation !== '-') {
-    const computedFinalGrade = (grades.task * 0.4) + (grades.project * 0.5) + (grades.participation * 0.1);
-    finalGradeDisplay = computedFinalGrade.toFixed(1);
-  } else if (grades.task !== '-') {
-    // Parcial: solo tareas + participación (sin proyecto)
-    const taskPart = grades.task * 0.4;
-    const partPart = (grades.participation !== '-' ? grades.participation : 0) * 0.1;
-    finalGradeDisplay = (taskPart + partPart).toFixed(1);
-    partialNote = "Sin proyecto aún";
+    finalGradeDisplay = "Recuperación";
+  } else if (points.task !== null) {
+    finalGradeDisplay = fmt(round1(points.task + (points.project ?? 0) + points.attendance + points.participation));
+    // Until the demo, the grade only has tasks + participation
+    if (points.project === null) partialNote = "Sin proyecto aún";
   }
   
 
@@ -133,9 +167,9 @@ export function StudentDashboardPage() {
               <AlertTriangle className="h-5 w-5 text-orange-500" />
             </div>
             <div className="ml-3">
-              <h3 className="text-sm font-bold text-orange-500">Evaluación por Examen</h3>
-              <div className="mt-1 text-sm text-orange-500/80">
-                Has acumulado {displayAbsences} inasistencias (límite superado). Tu calificación ordinaria ha sido anulada y debes presentar examen.
+              <h3 className="text-sm font-bold text-orange-700 dark:text-orange-400">Sprint {sprint} en recuperación</h3>
+              <div className="mt-1 text-sm text-orange-800 dark:text-orange-300">
+                Tienes {displayAbsences} faltas sin justificar en este sprint (el límite es {RECOVERY_ABSENCES - 1}). Este sprint no tendrá calificación ordinaria: lo recuperas del {RECOVERY_DATES}. Si tienes justificante, entrégalo al profesor.
               </div>
             </div>
           </div>
@@ -183,15 +217,14 @@ export function StudentDashboardPage() {
             <div className={`text-3xl font-bold ${isFailedByAbsences ? 'text-orange-600 dark:text-orange-400' : 'text-blue-600 dark:text-blue-400'}`}>
               {finalGradeDisplay} {!isFailedByAbsences && <span className="text-lg text-muted-foreground">/ 100</span>}
             </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {partialNote ? (
-                <span className="text-yellow-600 dark:text-yellow-400 flex items-center gap-1">
-                  Parcial: {partialNote}
-                </span>
-              ) : (
-                'Sprint 1'
-              )}
-            </p>
+            {!isFailedByAbsences && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Tareas {fmt(points.task)} + Proyecto {fmt(points.project)} + Asistencia {fmt(points.attendance)} + Participación {fmt(points.participation)}
+              </p>
+            )}
+            {partialNote && (
+              <p className="text-xs text-yellow-700 dark:text-yellow-400 mt-1">Parcial: {partialNote}</p>
+            )}
           </CardContent>
         </Card>
 
@@ -204,22 +237,30 @@ export function StudentDashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-foreground mb-3">
-              Tienes {absences} falta{absences !== 1 ? 's' : ''} registrada{absences !== 1 ? 's' : ''}
+              Tienes {absences} falta{absences !== 1 ? 's' : ''} en este sprint
             </div>
+            {justifiedAbsences > 0 && (
+              <p className="text-sm text-muted-foreground -mt-2 mb-3">
+                Además, {justifiedAbsences} justificada{justifiedAbsences !== 1 ? 's' : ''} que no cuenta{justifiedAbsences !== 1 ? 'n' : ''}.
+              </p>
+            )}
             <div className="space-y-3 mt-2">
               <p className="text-sm text-muted-foreground">Reglas de asistencia para este sprint:</p>
               <ul className="text-sm space-y-1.5 border-l-2 border-muted pl-3">
-                <li><strong className="text-foreground">0 a 1 falta:</strong> Participación 100%</li>
-                <li><strong className="text-foreground">2 faltas:</strong> Participación baja al 50%</li>
-                <li><strong className="text-foreground">3 faltas:</strong> Participación baja al 0%</li>
-                <li className="text-destructive"><strong className="font-bold">4+ faltas:</strong> Directo a examen <span className="text-muted-foreground font-normal text-xs">(Salvo justificante aceptable)</span></li>
+                <li><strong className="text-foreground">0 a 1 falta:</strong> 5 pts de asistencia</li>
+                <li><strong className="text-foreground">2 faltas:</strong> 2.5 pts de asistencia</li>
+                <li><strong className="text-foreground">3 faltas:</strong> 0 pts de asistencia</li>
+                <li className="text-destructive"><strong className="font-bold">4 o más faltas:</strong> el sprint se va a recuperación ({RECOVERY_DATES}) <span className="text-muted-foreground font-normal text-xs">(salvo justificante)</span></li>
               </ul>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      <h2 className="text-xl font-bold mt-8 mb-4">Desglose de Evaluación · Sprint {sprint}</h2>
+      <h2 className="text-xl font-bold mt-8 mb-1">Desglose de Evaluación · Sprint {sprint}</h2>
+      <p className="text-sm text-muted-foreground mb-4">
+        Tu calificación del sprint es la suma de: Tareas (hasta 40 pts) + Proyecto (hasta 50 pts) + Asistencia (hasta 5 pts) + Participación (hasta 5 pts) = 100.
+      </p>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Tareas */}
         <Card className="border-primary/50 ring-1 ring-primary/20">
@@ -231,8 +272,26 @@ export function StudentDashboardPage() {
             <CardDescription>Evaluación de código de GitHub</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold mb-2">{grades.task} / 100</div>
-            <p className="text-sm text-muted-foreground">Aporta {((grades.task * 0.4)).toFixed(1)} pts a la calificación final.</p>
+            <div className="text-3xl font-bold mb-3">{fmt(points.task)} <span className="text-lg text-muted-foreground font-medium">/ 40 pts</span></div>
+            <ul className="text-sm space-y-1 mb-3">
+              {sprintResults.map(t => (
+                <li key={t.taskInfo.id} className="flex justify-between gap-2">
+                  <span className="text-muted-foreground">{t.taskInfo.name.split(':')[0]}</span>
+                  <span className="font-medium">{t.score} / {t.taskInfo.maxScore}</span>
+                </li>
+              ))}
+            </ul>
+            {tasksFailed && !taskManual && (
+              <p className="text-xs text-destructive mb-2">No pudimos revisar todas tus tareas en GitHub. Recarga la página en un momento.</p>
+            )}
+            {taskManual && (
+              <p className="text-xs text-amber-700 mb-2">Calificación de tareas ajustada por el profesor.</p>
+            )}
+            {taskPercent !== null && (
+              <p className="text-xs text-muted-foreground border-t pt-2">
+                Sacaste {fmt(round1(taskPercent))} de 100 en tareas. Valen 40 pts: {fmt(round1(taskPercent))} × 0.4 = <b className="text-foreground">{fmt(points.task)} pts</b>.
+              </p>
+            )}
           </CardContent>
         </Card>
 
@@ -243,37 +302,74 @@ export function StudentDashboardPage() {
               <span>Proyecto</span>
               <span className="text-sm px-2 py-1 bg-muted rounded-md">50%</span>
             </CardTitle>
-            <CardDescription>Avance del proyecto de equipo</CardDescription>
+            <CardDescription>
+              Demo del proyecto en equipo
+              {hasProject && !saved.projectPublished && (
+                <span className="block mt-1 text-xs font-medium text-amber-700">Vista previa: el alumno aún no lo ve</span>
+              )}
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold mb-2">
-              {grades.project === '-' ? (
+            <div className="text-3xl font-bold mb-3">
+              {points.project === null ? (
                 <span className="text-muted-foreground text-2xl font-medium flex items-center gap-2">
-                  <Clock className="w-5 h-5 animate-pulse" />
+                  <Clock className="w-5 h-5 animate-pulse motion-reduce:animate-none" />
                   Pendiente
                 </span>
               ) : (
-                `${grades.project} / 100`
+                <>{fmt(points.project)} <span className="text-lg text-muted-foreground font-medium">/ 50 pts</span></>
               )}
             </div>
-            {grades.project !== '-' && (
-              <p className="text-sm text-muted-foreground">Aporta {((grades.project * 0.5)).toFixed(1)} pts a la calificación final.</p>
+            {points.project === null ? (
+              <p className="text-xs text-muted-foreground">Se califica con tu expo en la demo del sprint: cada punto de expo vale 5 pts.</p>
+            ) : !hasBreakdown ? (
+              <p className="text-xs text-muted-foreground">Calificación asignada por el profesor.</p>
+            ) : (
+              <>
+                <ul className="text-sm space-y-1 mb-3">
+                  <li className="flex justify-between gap-2">
+                    <span className="text-muted-foreground">Tu expo</span>
+                    <span className="font-medium">{saved.projectExpo} / 10</span>
+                  </li>
+                  {saved.projectRubric !== undefined && (
+                    <li className="flex justify-between gap-2">
+                      <span className="text-muted-foreground">Rúbrica de tu equipo <span className="text-xs">(retroalimentación)</span></span>
+                      <span className="font-medium">{saved.projectRubric} / 10</span>
+                    </li>
+                  )}
+                </ul>
+                <p className="text-xs text-muted-foreground border-t pt-2">
+                  Cada punto de tu expo vale 5 pts: {saved.projectExpo} × 5 = <b className="text-foreground">{fmt(points.project)} pts</b>. La rúbrica del equipo no suma puntos; es la guía de tu expo.
+                </p>
+              </>
             )}
           </CardContent>
         </Card>
 
-        {/* Participación */}
+        {/* Asistencia y participación */}
         <Card>
           <CardHeader>
             <CardTitle className="flex justify-between items-center">
-              <span>Participación</span>
+              <span>Asistencia y participación</span>
               <span className="text-sm px-2 py-1 bg-muted rounded-md">10%</span>
             </CardTitle>
-            <CardDescription>Asignada por el profesor</CardDescription>
+            <CardDescription>5 pts por asistencia + 5 pts por participación</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold mb-2">{grades.participation} / 100</div>
-            <p className="text-sm text-muted-foreground">Aporta {((grades.participation * 0.1)).toFixed(1)} pts a la calificación final.</p>
+            <div className="text-3xl font-bold mb-3">{fmt(round1(points.attendance + points.participation))} <span className="text-lg text-muted-foreground font-medium">/ 10 pts</span></div>
+            <ul className="text-sm space-y-1 mb-3">
+              <li className="flex justify-between gap-2">
+                <span className="text-muted-foreground">Asistencia ({absences} falta{absences !== 1 ? 's' : ''})</span>
+                <span className="font-medium">{fmt(points.attendance)} / 5</span>
+              </li>
+              <li className="flex justify-between gap-2">
+                <span className="text-muted-foreground">Participación en clase</span>
+                <span className="font-medium">{fmt(points.participation)} / 5</span>
+              </li>
+            </ul>
+            <p className="text-xs text-muted-foreground border-t pt-2">
+              Asistencia: 0–1 faltas = 5 · 2 faltas = 2.5 · 3 o más = 0. La participación empieza en 5 y el profesor la ajusta según tu desempeño en clase.
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -328,7 +424,9 @@ export function StudentDashboardPage() {
                           <td className="px-6 py-4 text-center">
                             {t.partial
                               ? <Badge variant="secondary">Parcial</Badge>
-                              : renderDeliveryBadge(t.delivery.status)}
+                              : !t.completed && new Date(t.taskInfo.deadline) > new Date()
+                                ? <Badge variant="outline">Aún no vence</Badge>
+                                : renderDeliveryBadge(t.delivery.status)}
                           </td>
                           <td className="px-6 py-4 text-center font-bold">
                             {t.score} <span className="text-muted-foreground font-normal">/ {t.taskInfo.maxScore}</span>

@@ -21,9 +21,26 @@ function githubApiDevServer(env) {
   };
 }
 
+// Each build gets an id, baked into the bundle and published as /version.json,
+// so an open tab can notice it is running an older build (see UpdateBanner)
+const BUILD_ID = process.env.VERCEL_GIT_COMMIT_SHA || String(Date.now());
+
+function versionFile() {
+  return {
+    name: 'version-file',
+    apply: 'build',
+    generateBundle() {
+      this.emitFile({ type: 'asset', fileName: 'version.json', source: JSON.stringify({ version: BUILD_ID }) });
+    },
+  };
+}
+
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => ({
-  plugins: [react(), tailwindcss(), githubApiDevServer(loadEnv(mode, process.cwd(), ''))],
+  plugins: [react(), tailwindcss(), githubApiDevServer(loadEnv(mode, process.cwd(), '')), versionFile()],
+  define: {
+    __BUILD_ID__: JSON.stringify(BUILD_ID),
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

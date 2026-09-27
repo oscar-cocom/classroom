@@ -63,14 +63,16 @@ export async function getStudents() {
 /**
  * ATTENDANCE
  */
-export async function saveAttendance(dateStr, studentId, isPresent) {
+export async function saveAttendance(dateStr, studentId, isPresent, justified = false) {
   if (!db) return;
   // Use a composite ID: date_studentId
   const id = `${dateStr}_${studentId}`;
   await setDoc(doc(ATTENDANCE_COL, id), {
     date: dateStr,
     studentId,
-    isPresent
+    isPresent,
+    // An absence with a justificante: recorded, but it doesn't count
+    justified: !isPresent && justified
   });
 }
 
@@ -132,8 +134,14 @@ export async function saveStudentGrades(studentId, sprint, gradesData) {
 export async function getStudentGrades(studentId, sprint) {
   if (!db) return null;
   const id = `${studentId}_${sprint.replace(/\s+/g, '')}`;
-  const docSnap = await getDoc(doc(GRADES_COL, id));
-  return docSnap.exists() ? docSnap.data() : null;
+  try {
+    const docSnap = await getDoc(doc(GRADES_COL, id));
+    return docSnap.exists() ? docSnap.data() : null;
+  } catch (err) {
+    // A student reading a sprint that has no grades yet gets permission-denied
+    if (err.code === 'permission-denied') return null;
+    throw err;
+  }
 }
 
 export async function getAllGrades() {
@@ -167,19 +175,35 @@ export async function deleteFollowUp(studentId) {
 }
 
 /**
- * TEAM EVALUATIONS: project rubric and individual expo scores per team.
- * One document per team: { rubric: { func: true, ... }, students: { s1: 8, ... }, updatedAt }
+ * TEAM EVALUATIONS: project rubric and individual expo scores, per team and sprint.
+ * One document per team: { sprints: { "1": { rubric: { func: true, ... }, students: { s1: 8 }, updatedAt } } }
+ * Returns { [sprint]: { rubric, students, updatedAt } }.
  */
-export async function getTeamEvaluation(teamId) {
-  if (!db) return null;
-  const docSnap = await getDoc(doc(db, 'evaluations', teamId));
-  return docSnap.exists() ? docSnap.data() : null;
+function evaluationBySprint(data) {
+  const sprints = { ...data.sprints };
+  // Evaluations saved before sprints existed were all Sprint 1
+  if (!sprints[1] && (data.rubric || data.students)) {
+    sprints[1] = { rubric: data.rubric || {}, students: data.students || {}, updatedAt: data.updatedAt };
+  }
+  return sprints;
 }
 
-export async function saveTeamEvaluation(teamId, data) {
+export async function getTeamEvaluation(teamId) {
+  if (!db) return {};
+  const docSnap = await getDoc(doc(db, 'evaluations', teamId));
+  return docSnap.exists() ? evaluationBySprint(docSnap.data()) : {};
+}
+
+// { [teamId]: { [sprint]: { rubric, students, published, updatedAt } } }
+export async function getAllTeamEvaluations() {
+  if (!db) return {};
+  const snapshot = await getDocs(collection(db, 'evaluations'));
+  return Object.fromEntries(snapshot.docs.map(d => [d.id, evaluationBySprint(d.data())]));
+}
+
+export async function saveTeamEvaluation(teamId, sprint, { rubric, students, published = false }) {
   if (!db) return;
   await setDoc(doc(db, 'evaluations', teamId), {
-    ...data,
-    updatedAt: new Date().toISOString()
+    sprints: { [sprint]: { rubric, students, published, updatedAt: new Date().toISOString() } }
   }, { merge: true });
 }

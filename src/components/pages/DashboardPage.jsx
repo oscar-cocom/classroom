@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { TeamCard } from '@/components/molecules/TeamCard';
 import teamsData from '@/data/teams.json';
-import { getTasks, migrateTasksToFirestore, deleteTask } from '@/services/firestoreApi';
+import studentsData from '@/data/students.json';
+import { getTasks, migrateTasksToFirestore, deleteTask, getAllTeamEvaluations } from '@/services/firestoreApi';
+import { PROJECT_SPRINTS } from '@/lib/projectGrading';
 import { Button } from '@/components/ui/button';
 import { Plus, Edit, Trash2 } from 'lucide-react';
 import { CreateTaskModal } from '@/components/organisms/CreateTaskModal';
@@ -12,6 +14,8 @@ export function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
+  const [evaluations, setEvaluations] = useState({});
+  const [projectSprint, setProjectSprint] = useState(1);
 
   const loadTasks = async () => {
     setLoading(true);
@@ -23,6 +27,9 @@ export function DashboardPage() {
 
   useEffect(() => {
     loadTasks();
+    getAllTeamEvaluations()
+      .then(setEvaluations)
+      .catch(err => console.error('Error loading team evaluations:', err));
   }, []);
 
   const handleEdit = (task) => {
@@ -112,14 +119,38 @@ export function DashboardPage() {
         </div>
       </div>
 
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+        <h2 className="text-2xl font-bold">Proyecto por equipo</h2>
+        <nav aria-label="Sprint del proyecto" className="flex gap-1 p-1 bg-muted rounded-lg w-fit">
+          {PROJECT_SPRINTS.map(n => (
+            <button
+              key={n}
+              type="button"
+              onClick={() => setProjectSprint(n)}
+              aria-current={projectSprint === n ? 'page' : undefined}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${projectSprint === n ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+            >
+              Sprint {n}
+            </button>
+          ))}
+        </nav>
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {teamsData.map((team) => (
-          <TeamCard 
-            key={team.id} 
-            team={team} 
-            progress={0} // To be wired to firebase later
-          />
-        ))}
+        {teamsData.map((team) => {
+          const members = studentsData.filter(s => s.teamId === team.id);
+          const evaluation = evaluations[team.id]?.[projectSprint] || {};
+          const graded = members.filter(s => evaluation.students?.[s.id] !== undefined).length;
+          return (
+            <TeamCard 
+              key={team.id} 
+              team={team} 
+              graded={graded}
+              total={members.length}
+              published={evaluation.published === true}
+              sprint={projectSprint}
+            />
+          );
+        })}
       </div>
 
       <CreateTaskModal 

@@ -2,13 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { X } from 'lucide-react';
 import { saveTask } from '@/services/firestoreApi';
-
-// <input type="datetime-local"> expects local time; toISOString() would show UTC
-// and shift the deadline every time a task is edited and saved
-function toLocalInputValue(isoString) {
-  const date = new Date(isoString);
-  return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().substring(0, 16);
-}
+import { toCancunInputValue, fromCancunInputValue } from '@/lib/sprints';
 
 export function CreateTaskModal({ isOpen, onClose, onTaskCreated, editingTask }) {
   const [formData, setFormData] = useState({
@@ -29,7 +23,7 @@ export function CreateTaskModal({ isOpen, onClose, onTaskCreated, editingTask })
         name: editingTask.name || '',
         requirement: editingTask.requirement || '',
         sprint: editingTask.sprint || 1,
-        deadline: editingTask.deadline ? toLocalInputValue(editingTask.deadline) : '',
+        deadline: editingTask.deadline ? toCancunInputValue(editingTask.deadline) : '',
         maxScore: editingTask.maxScore || 50,
         keywords: editingTask.evaluation?.keywords?.join(', ') || '',
         matchCount: editingTask.evaluation?.matchCount || 1,
@@ -51,6 +45,11 @@ export function CreateTaskModal({ isOpen, onClose, onTaskCreated, editingTask })
 
   if (!isOpen) return null;
 
+  // Tasks with a special rule (e.g. "form with 2 buttons") keep it; only keyword tasks are editable here
+  const customEvaluation = editingTask?.evaluation && editingTask.evaluation.strategy !== 'keyword'
+    ? editingTask.evaluation
+    : null;
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -61,10 +60,10 @@ export function CreateTaskModal({ isOpen, onClose, onTaskCreated, editingTask })
       name: formData.name,
       requirement: formData.requirement,
       dateAssigned: editingTask ? editingTask.dateAssigned : new Date().toISOString(),
-      deadline: new Date(formData.deadline).toISOString(),
+      deadline: fromCancunInputValue(formData.deadline),
       maxScore: parseInt(formData.maxScore),
       template: formData.template,
-      evaluation: {
+      evaluation: customEvaluation || {
         strategy: "keyword",
         keywords: formData.keywords.split(',').map(k => k.trim()).filter(k => k),
         matchCount: parseInt(formData.matchCount)
@@ -112,7 +111,7 @@ export function CreateTaskModal({ isOpen, onClose, onTaskCreated, editingTask })
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Fecha Límite</label>
+              <label className="text-sm font-medium">Fecha Límite (hora de Cancún)</label>
               <input required type="datetime-local" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={formData.deadline} onChange={e => setFormData({...formData, deadline: e.target.value})} />
             </div>
             <div className="space-y-2">
@@ -121,6 +120,16 @@ export function CreateTaskModal({ isOpen, onClose, onTaskCreated, editingTask })
             </div>
           </div>
 
+          {customEvaluation ? (
+            <div className="border p-4 rounded-md bg-muted/20 text-sm">
+              <h3 className="font-semibold">Evaluación automática: regla especial</h3>
+              <p className="text-muted-foreground mt-1">
+                {customEvaluation.strategy === 'custom_form_buttons'
+                  ? 'Revisa que haya un <form> con 2 botones (1 botón = mitad de puntos). Se conserva al guardar.'
+                  : 'Esta tarea tiene una regla propia que se conserva al guardar.'}
+              </p>
+            </div>
+          ) : (
           <div className="border p-4 rounded-md space-y-4 bg-muted/20">
             <h3 className="font-semibold text-sm">Evaluación Automática (Palabras Clave)</h3>
             <div className="space-y-2">
@@ -133,6 +142,7 @@ export function CreateTaskModal({ isOpen, onClose, onTaskCreated, editingTask })
               <input required type="number" min="1" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={formData.matchCount} onChange={e => setFormData({...formData, matchCount: e.target.value})} />
             </div>
           </div>
+          )}
 
           <div className="space-y-2">
             <label className="text-sm font-medium">Plantilla de Código (Opcional)</label>

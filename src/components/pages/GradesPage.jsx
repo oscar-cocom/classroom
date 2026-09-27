@@ -1,54 +1,45 @@
-import React, { useState, useEffect } from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { getStudents, getAllGrades, getAllAttendanceRecords, saveStudentGrades, getTasks } from '@/services/firestoreApi';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Card, CardContent } from '@/components/ui/card';
+import { getAllGrades, getAllAttendanceRecords, saveStudentGrades, getTasks } from '@/services/firestoreApi';
 import { evaluateStudentTasks } from '@/services/githubApi';
 import studentsData from '@/data/students.json';
-import { sprintOfDate, participationFromAbsences } from '@/lib/sprints';
+import { sprintOfDate, isUnexcusedAbsence, attendancePoints, DEFAULT_PARTICIPATION, RECOVERY_ABSENCES } from '@/lib/sprints';
+import { PROJECT_SPRINTS } from '@/lib/projectGrading';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { RefreshCcw, ExternalLink, Pencil, Save, X, Search } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { RefreshCcw, ExternalLink, Pencil, Save, X, Search, Eye } from 'lucide-react';
+
+const round1 = n => Math.round(n * 10) / 10;
+
+// Stored scores are 0-100 per component; this page shows sprint points
+// (tasks 40 + project 50 + attendance 5 + participation 5)
+const TASK_WEIGHT = 0.4;
+const PROJECT_WEIGHT = 0.5;
 
 export function GradesPage() {
-  const [students, setStudents] = useState([]);
-  const [grades, setGrades] = useState({});
-  const [absences, setAbsences] = useState({});
+  const [sprint, setSprint] = useState(1);
+  // students.json is the single roster used by every page, the rules and the GitHub proxy
+  const students = studentsData;
+  const [allGrades, setAllGrades] = useState([]);
+  const [attendance, setAttendance] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncProgress, setSyncProgress] = useState(0);
 
-  // Search and Edit state
+  // Search and edit state
   const [searchTerm, setSearchTerm] = useState("");
   const [editingId, setEditingId] = useState(null);
-  const [tempGrades, setTempGrades] = useState({ taskScore: 0, projectScore: 0, participationScore: 0 });
+  const [temp, setTemp] = useState({ task: 0, participation: DEFAULT_PARTICIPATION });
+
+  const sprintLabel = `Sprint ${sprint}`;
 
   useEffect(() => {
     async function loadData() {
       setLoading(true);
       try {
-        let dbStudents = await getStudents();
-        if (dbStudents.length === 0) dbStudents = studentsData;
-        setStudents(dbStudents);
-
-        // Load attendance
-        const allAttendance = await getAllAttendanceRecords();
-        const absencesMap = {};
-        allAttendance.forEach(a => {
-          // This page grades Sprint 1: later absences belong to the next sprint
-          if (!a.isPresent && sprintOfDate(a.date) === 1) {
-            absencesMap[a.studentId] = (absencesMap[a.studentId] || 0) + 1;
-          }
-        });
-        setAbsences(absencesMap);
-
-        // Load grades
-        const allGrades = await getAllGrades();
-        const gradesMap = {};
-        allGrades.forEach(g => {
-          if (g.sprint === 'Sprint 1') {
-            gradesMap[g.studentId] = g;
-          }
-        });
-        setGrades(gradesMap);
+        setAttendance(await getAllAttendanceRecords());
+        setAllGrades(await getAllGrades());
       } catch (err) {
         console.error("Error loading grades:", err);
       } finally {
@@ -58,44 +49,27 @@ export function GradesPage() {
     loadData();
   }, []);
 
-  const handleSyncTasks = async () => {
-    if (!confirm(`Esto revisará los repositorios de GitHub de los ${students.length} alumnos. Puede tardar un par de minutos. ¿Continuar?`)) return;
-    
-    setIsSyncing(true);
-    setSyncProgress(0);
-    try {
-      const sprintTasks = (await getTasks()).filter(t => t.sprint === 1);
-      const maxScore = sprintTasks.reduce((sum, t) => sum + Number(t.maxScore), 0);
-      const updatedGrades = { ...grades };
-      let count = 0;
-      for (const student of students) {
-        const githubResult = await evaluateStudentTasks(student.repoName, sprintTasks);
-        if (githubResult.error) {
-          count++;
-          continue;
-        }
-        const taskScore = maxScore > 0 ? Math.round((githubResult.totalScore / maxScore) * 100) : 0;
-        const taskReason = githubResult.repoMissing
-          ? "Sin repo de tareas"
-          : describeTaskResults(Object.values(githubResult.tasks));
-        
-        await saveStudentGrades(student.id, 'Sprint 1', { taskScore, taskReason });
-        
-        if (!updatedGrades[student.id]) updatedGrades[student.id] = {};
-        updatedGrades[student.id].taskScore = taskScore;
-        updatedGrades[student.id].taskReason = taskReason;
-        
-        count++;
-        setSyncProgress(Math.round((count / students.length) * 100));
-        setGrades({ ...updatedGrades });
-      }
-    } catch (err) {
-      console.error("Error syncing tasks:", err);
-      alert("Hubo un error sincronizando algunas tareas.");
-    } finally {
-      setIsSyncing(false);
-      setSyncProgress(0);
-    }
+  const grades = useMemo(
+    () => Object.fromEntries(allGrades.filter(g => g.sprint === sprintLabel).map(g => [g.studentId, g])),
+    [allGrades, sprintLabel]
+  );
+
+  // Unexcused absences that fall in the selected sprint
+  const absences = useMemo(() => {
+    const map = {};
+    attendance
+      .filter(a => isUnexcusedAbsence(a) && sprintOfDate(a.date) === sprint)
+      .forEach(a => { map[a.studentId] = (map[a.studentId] || 0) + 1; });
+    return map;
+  }, [attendance, sprint]);
+
+  const updateLocalGrade = (studentId, data) => {
+    setAllGrades(prev => {
+      const exists = prev.some(g => g.studentId === studentId && g.sprint === sprintLabel);
+      return exists
+        ? prev.map(g => (g.studentId === studentId && g.sprint === sprintLabel ? { ...g, ...data } : g))
+        : [...prev, { studentId, sprint: sprintLabel, ...data }];
+    });
   };
 
   const describeTaskResults = (taskResults) => {
@@ -110,45 +84,58 @@ export function GradesPage() {
     return parts.join(", ") || "Completo";
   };
 
-  const getAutoParticipation = participationFromAbsences;
+  const handleSyncTasks = async () => {
+    if (!confirm(`Esto revisará las tareas del Sprint ${sprint} en los repositorios de los ${students.length} alumnos. Puede tardar un par de minutos. ¿Continuar?`)) return;
 
-  const renderAbsences = (count) => {
-    if (count >= 4) {
-      return <span className="font-bold text-red-500">+{count}</span>;
-    }
-    return count;
-  };
-
-  const handleEditClick = (studentId, currentTask, currentProject, currentPart) => {
-    setEditingId(studentId);
-    setTempGrades({
-      taskScore: currentTask === '-' ? 0 : currentTask,
-      projectScore: currentProject === '-' ? 0 : currentProject,
-      participationScore: currentPart
-    });
-  };
-
-  const handleCancelEdit = () => {
-    setEditingId(null);
-  };
-
-  const handleSaveClick = async (studentId) => {
+    setIsSyncing(true);
+    setSyncProgress(0);
     try {
-      await saveStudentGrades(studentId, 'Sprint 1', {
-        taskScore: tempGrades.taskScore,
-        projectScore: tempGrades.projectScore,
-        participationScoreOverride: tempGrades.participationScore
-      });
+      const sprintTasks = (await getTasks()).filter(t => Number(t.sprint) === sprint);
+      if (!sprintTasks.length) {
+        alert(`El Sprint ${sprint} no tiene tareas registradas.`);
+        return;
+      }
+      const maxScore = sprintTasks.reduce((sum, t) => sum + Number(t.maxScore), 0);
+      let count = 0;
+      for (const student of students) {
+        const githubResult = await evaluateStudentTasks(student.repoName, sprintTasks);
+        count++;
+        setSyncProgress(Math.round((count / students.length) * 100));
+        if (githubResult.error) continue;
 
-      setGrades(prev => ({
-        ...prev,
-        [studentId]: {
-          ...prev[studentId],
-          taskScore: tempGrades.taskScore,
-          projectScore: tempGrades.projectScore,
-          participationScoreOverride: tempGrades.participationScore
-        }
-      }));
+        const taskScore = maxScore > 0 ? Math.round((githubResult.totalScore / maxScore) * 100) : 0;
+        const taskReason = githubResult.repoMissing
+          ? "Sin repo de tareas"
+          : describeTaskResults(Object.values(githubResult.tasks));
+        // A grade the teacher corrected by hand is not overwritten by the sync
+        if (grades[student.id]?.taskManual) continue;
+        await saveStudentGrades(student.id, sprintLabel, { taskScore, taskReason });
+        updateLocalGrade(student.id, { taskScore, taskReason });
+      }
+    } catch (err) {
+      console.error("Error syncing tasks:", err);
+      alert("Hubo un error sincronizando algunas tareas.");
+    } finally {
+      setIsSyncing(false);
+      setSyncProgress(0);
+    }
+  };
+
+  const handleEditClick = (studentId, row) => {
+    setEditingId(studentId);
+    setTemp({ task: row.task ?? 0, participation: row.participation });
+  };
+
+  const handleSaveClick = async (studentId, row) => {
+    const data = { participationPoints: Math.min(5, Math.max(0, temp.participation)) };
+    if (temp.task !== (row.task ?? 0)) {
+      data.taskScore = round1(temp.task / TASK_WEIGHT);
+      // The student's dashboard shows this instead of the live GitHub check
+      data.taskManual = true;
+    }
+    try {
+      await saveStudentGrades(studentId, sprintLabel, data);
+      updateLocalGrade(studentId, data);
       setEditingId(null);
     } catch (err) {
       console.error("Error saving grades:", err);
@@ -156,40 +143,82 @@ export function GradesPage() {
     }
   };
 
-  const filteredStudents = students.filter(s => 
-    s.name.toLowerCase().includes(searchTerm.toLowerCase())
+  const rows = students
+    .filter(s => s.name.toLowerCase().includes(searchTerm.toLowerCase()))
+    .map(student => {
+      const g = grades[student.id] || {};
+      const absenceCount = absences[student.id] || 0;
+      const row = {
+        student,
+        absences: absenceCount,
+        task: g.taskScore !== undefined ? round1(g.taskScore * TASK_WEIGHT) : null,
+        taskReason: g.taskReason || '',
+        taskManual: g.taskManual === true,
+        project: g.projectScore !== undefined && g.projectScore !== null ? round1(g.projectScore * PROJECT_WEIGHT) : null,
+        projectPublished: g.projectPublished === true,
+        attendance: attendancePoints(absenceCount),
+        participation: g.participationPoints ?? DEFAULT_PARTICIPATION,
+        inRecovery: absenceCount >= RECOVERY_ABSENCES,
+      };
+      row.total = row.task === null ? null : round1(row.task + (row.project ?? 0) + row.attendance + row.participation);
+      return row;
+    });
+
+  const numberInput = (value, max, step, onChange, label) => (
+    <input
+      type="number" min="0" max={max} step={step}
+      aria-label={label}
+      className="w-16 p-1 border rounded text-center bg-background"
+      value={value}
+      onChange={(e) => onChange(Math.min(max, Math.max(0, parseFloat(e.target.value) || 0)))}
+    />
   );
 
   return (
     <div className="space-y-6">
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Calificaciones - Sprint 1</h1>
+          <h1 className="text-3xl font-bold">Calificaciones</h1>
           <p className="text-muted-foreground mt-1">
-            Revisión automática de Tareas. Ahora con buscador y editor manual de notas.
+            Tareas 40 + Proyecto 50 + Asistencia 5 + Participación 5 = 100 pts por sprint.
           </p>
         </div>
         <div className="flex items-center gap-2 w-full md:w-auto">
           <div className="relative flex-1 md:min-w-[300px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <input 
-              type="text" 
-              placeholder="Buscar alumno por nombre..." 
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
+            <input
+              type="text"
+              aria-label="Buscar alumno"
+              placeholder="Buscar alumno por nombre..."
               className="w-full pl-9 pr-4 py-2 bg-background border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <Button 
-            onClick={handleSyncTasks} 
+          <Button
+            onClick={handleSyncTasks}
             disabled={isSyncing || loading}
-            className="bg-primary hover:bg-primary/90 text-primary-foreground whitespace-nowrap"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground whitespace-nowrap cursor-pointer"
           >
-            <RefreshCcw className={`w-4 h-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
-            {isSyncing ? `Sync... ${syncProgress}%` : 'Sincronizar'}
+            <RefreshCcw className={`w-4 h-4 mr-2 ${isSyncing ? 'animate-spin motion-reduce:animate-none' : ''}`} aria-hidden="true" />
+            {isSyncing ? `Sync... ${syncProgress}%` : 'Sincronizar tareas'}
           </Button>
         </div>
       </header>
+
+      <nav aria-label="Sprint" className="flex gap-1 p-1 bg-muted rounded-lg w-fit">
+        {PROJECT_SPRINTS.map(n => (
+          <button
+            key={n}
+            type="button"
+            onClick={() => { setSprint(n); setEditingId(null); }}
+            aria-current={sprint === n ? 'page' : undefined}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${sprint === n ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+          >
+            Sprint {n}
+          </button>
+        ))}
+      </nav>
 
       <Card>
         <CardContent className="p-0">
@@ -200,139 +229,113 @@ export function GradesPage() {
               <table className="w-full text-sm text-left">
                 <thead className="text-xs uppercase bg-muted/50 border-b">
                   <tr>
-                    <th className="px-6 py-3">Alumno</th>
-                    <th className="px-6 py-3">Equipo</th>
-                    <th className="px-4 py-3 text-center">Faltas</th>
-                    <th className="px-4 py-3 text-center">Tareas (40%)</th>
-                    <th className="px-4 py-3 text-center">Proyecto (50%)</th>
-                    <th className="px-4 py-3 text-center">Part. (10%)</th>
-                    <th className="px-4 py-3 text-center text-primary">Final (100%)</th>
-                    <th className="px-4 py-3 text-center">Acciones</th>
+                    <th scope="col" className="px-6 py-3">Alumno</th>
+                    <th scope="col" className="px-4 py-3">Equipo</th>
+                    <th scope="col" className="px-4 py-3 text-center">Faltas</th>
+                    <th scope="col" className="px-4 py-3 text-center">Tareas /40</th>
+                    <th scope="col" className="px-4 py-3 text-center">Proyecto /50</th>
+                    <th scope="col" className="px-4 py-3 text-center">Asist. /5</th>
+                    <th scope="col" className="px-4 py-3 text-center">Part. /5</th>
+                    <th scope="col" className="px-4 py-3 text-center text-primary">Total /100</th>
+                    <th scope="col" className="px-4 py-3 text-center"><span className="sr-only">Acciones</span></th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredStudents.length === 0 ? (
+                  {rows.length === 0 && (
                     <tr>
-                      <td colSpan="8" className="px-6 py-8 text-center text-muted-foreground">
+                      <td colSpan="9" className="px-6 py-8 text-center text-muted-foreground">
                         No se encontraron alumnos con ese nombre.
                       </td>
                     </tr>
-                  ) : null}
-                  {filteredStudents.map((student) => {
-                    const absenceCount = absences[student.id] || 0;
-                    const autoPart = getAutoParticipation(absenceCount);
-                    
-                    const participationScore = grades[student.id]?.participationScoreOverride !== undefined 
-                      ? grades[student.id].participationScoreOverride 
-                      : autoPart;
-
-                    const taskScore = grades[student.id]?.taskScore !== undefined ? grades[student.id].taskScore : '-';
-                    const taskReason = grades[student.id]?.taskReason || '';
-                    
-                    const projectScore = grades[student.id]?.projectScore !== undefined ? grades[student.id].projectScore : '-';
-                    const isFailedByAbsences = absenceCount >= 4;
-                    
-                    let finalGradeDisplay = '-';
-                    if (taskScore !== '-' && projectScore !== '-') {
-                      const computedFinalGrade = (taskScore * 0.4) + (projectScore * 0.5) + (participationScore * 0.1);
-                      finalGradeDisplay = isFailedByAbsences ? "EXAMEN" : computedFinalGrade.toFixed(1);
-                    }
-
+                  )}
+                  {rows.map((row) => {
+                    const { student } = row;
                     const isEditing = editingId === student.id;
 
                     return (
                       <tr key={student.id} className="border-b last:border-0 hover:bg-muted/30">
-                        <td className="px-6 py-4 font-medium flex items-center gap-2">
-                          {student.name}
-                          <a 
-                            href={`https://github.com/classroom-programacion-web/${student.repoName}`} 
-                            target="_blank" 
-                            rel="noreferrer"
-                            className="text-muted-foreground hover:text-primary transition-colors"
-                            title="Abrir repositorio en GitHub"
-                          >
-                            <ExternalLink className="w-4 h-4" />
-                          </a>
-                          <a 
-                            href={`/dashboard/my-grades?preview=${student.githubUsername}`} 
-                            target="_blank" 
-                            rel="noreferrer"
-                            className="text-muted-foreground hover:text-blue-500 transition-colors ml-1"
-                            title="Ver dashboard como este alumno"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
-                          </a>
+                        <td className="px-6 py-4 font-medium">
+                          <div className="flex items-center gap-2">
+                            {student.name}
+                            <a
+                              href={`https://github.com/classroom-programacion-web/${student.repoName}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-muted-foreground hover:text-primary transition-colors"
+                              aria-label={`Abrir repositorio de ${student.name}`}
+                            >
+                              <ExternalLink className="w-4 h-4" aria-hidden="true" />
+                            </a>
+                            {student.githubUsername && (
+                              <a
+                                href={`/dashboard/my-grades?preview=${student.githubUsername}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-muted-foreground hover:text-blue-500 transition-colors"
+                                aria-label={`Ver la pantalla de ${student.name}`}
+                              >
+                                <Eye className="w-4 h-4" aria-hidden="true" />
+                              </a>
+                            )}
+                          </div>
                         </td>
-                        <td className="px-6 py-4">{student.teamId}</td>
-                        <td className="px-4 py-4 text-center text-lg">{renderAbsences(absenceCount)}</td>
-                        
+                        <td className="px-4 py-4">{student.teamId}</td>
+                        <td className={`px-4 py-4 text-center text-lg ${row.inRecovery ? 'font-bold text-red-600' : ''}`}>{row.absences}</td>
+
                         <td className="px-4 py-4 text-center">
-                          {isEditing ? (
-                            <input 
-                              type="number" min="0" max="100" 
-                              className="w-16 p-1 border rounded text-center bg-background"
-                              value={tempGrades.taskScore}
-                              onChange={(e) => setTempGrades({...tempGrades, taskScore: parseInt(e.target.value) || 0})}
-                            />
-                          ) : (
-                            <div className="group relative inline-block">
-                              <span className="font-bold cursor-help underline decoration-dotted decoration-muted-foreground/50">
-                                {taskScore === '-' ? <span className="text-muted-foreground/50">N/A</span> : taskScore}
-                              </span>
-                              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block w-max bg-zinc-900 text-white text-xs rounded py-1.5 px-3 z-50 shadow-xl pointer-events-none">
-                                {taskReason || "Sincroniza para ver detalles"}
-                                <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-zinc-900"></div>
-                              </div>
-                            </div>
+                          {isEditing ? numberInput(temp.task, 40, 0.5, v => setTemp({ ...temp, task: v }), `Tareas de ${student.name}`) : (
+                            <span className="font-bold" title={row.taskManual ? 'Ajustada a mano (la sincronización no la cambia)' : row.taskReason || "Sincroniza para ver detalles"}>
+                              {row.task === null ? <span className="text-muted-foreground/60">—</span> : row.task}
+                              {row.taskManual && <span className="block text-[10px] font-normal text-amber-700">a mano</span>}
+                            </span>
                           )}
                         </td>
-                        
+
                         <td className="px-4 py-4 text-center">
-                          {isEditing ? (
-                            <input 
-                              type="number" min="0" max="100" 
-                              className="w-16 p-1 border rounded text-center bg-background"
-                              value={tempGrades.projectScore}
-                              onChange={(e) => setTempGrades({...tempGrades, projectScore: parseInt(e.target.value) || 0})}
-                            />
+                          {/* The project is graded on the team page, where it is also published */}
+                          {row.project === null ? (
+                            <Link to={`/dashboard/team/${student.teamId}`} className="text-muted-foreground/60 hover:text-primary" title="Calificar en la pantalla del equipo">—</Link>
                           ) : (
-                            projectScore
+                            <Link to={`/dashboard/team/${student.teamId}`} className="hover:underline" title={row.projectPublished ? 'Publicado al alumno · editar en Equipos' : 'Aún no publicado · editar en Equipos'}>
+                              {row.project}
+                              {!row.projectPublished && <span className="block text-[10px] text-amber-700">sin publicar</span>}
+                            </Link>
                           )}
                         </td>
-                        
+
+                        <td className="px-4 py-4 text-center">{row.attendance}</td>
+
                         <td className="px-4 py-4 text-center">
-                          {isEditing ? (
-                            <input 
-                              type="number" min="0" max="100" 
-                              className="w-16 p-1 border rounded text-center bg-background"
-                              value={tempGrades.participationScore}
-                              onChange={(e) => setTempGrades({...tempGrades, participationScore: parseInt(e.target.value) || 0})}
-                            />
-                          ) : (
-                            <Badge variant={participationScore === 100 ? "default" : participationScore >= 50 ? "secondary" : "destructive"}>
-                              {participationScore}
+                          {isEditing ? numberInput(temp.participation, 5, 0.5, v => setTemp({ ...temp, participation: v }), `Participación de ${student.name}`) : (
+                            <Badge variant={row.participation === 5 ? "default" : row.participation >= 2.5 ? "secondary" : "destructive"}>
+                              {row.participation}
                             </Badge>
                           )}
                         </td>
-                        
-                        <td className={`px-4 py-4 text-center font-bold ${isFailedByAbsences ? 'text-red-500' : 'text-primary'}`}>
-                          {finalGradeDisplay}
+
+                        <td className={`px-4 py-4 text-center font-bold ${row.inRecovery ? 'text-red-600' : 'text-primary'}`}>
+                          {row.inRecovery ? 'Recuperación' : row.total === null ? '—' : (
+                            <>
+                              {row.total}
+                              {row.project === null && <span className="block text-[10px] font-normal text-muted-foreground">sin proyecto</span>}
+                            </>
+                          )}
                         </td>
-                        
+
                         <td className="px-4 py-4 text-center">
                           <div className="flex items-center justify-center gap-2">
                             {isEditing ? (
                               <>
-                                <button onClick={() => handleSaveClick(student.id)} className="text-green-600 hover:text-green-700 bg-green-500/10 p-1.5 rounded-md" title="Guardar">
-                                  <Save className="w-4 h-4" />
+                                <button onClick={() => handleSaveClick(student.id, row)} className="text-green-600 hover:text-green-700 bg-green-500/10 p-1.5 rounded-md cursor-pointer" aria-label="Guardar">
+                                  <Save className="w-4 h-4" aria-hidden="true" />
                                 </button>
-                                <button onClick={handleCancelEdit} className="text-red-600 hover:text-red-700 bg-red-500/10 p-1.5 rounded-md" title="Cancelar">
-                                  <X className="w-4 h-4" />
+                                <button onClick={() => setEditingId(null)} className="text-red-600 hover:text-red-700 bg-red-500/10 p-1.5 rounded-md cursor-pointer" aria-label="Cancelar">
+                                  <X className="w-4 h-4" aria-hidden="true" />
                                 </button>
                               </>
                             ) : (
-                              <button onClick={() => handleEditClick(student.id, taskScore, projectScore, participationScore)} className="text-blue-600 hover:text-blue-700 bg-blue-500/10 p-1.5 rounded-md transition-colors" title="Editar">
-                                <Pencil className="w-4 h-4" />
+                              <button onClick={() => handleEditClick(student.id, row)} className="text-blue-600 hover:text-blue-700 bg-blue-500/10 p-1.5 rounded-md transition-colors cursor-pointer" aria-label={`Editar calificaciones de ${student.name}`}>
+                                <Pencil className="w-4 h-4" aria-hidden="true" />
                               </button>
                             )}
                           </div>
@@ -346,6 +349,9 @@ export function GradesPage() {
           )}
         </CardContent>
       </Card>
+      <p className="text-xs text-muted-foreground">
+        Asistencia: 0–1 faltas = 5 · 2 faltas = 2.5 · 3 = 0 · {RECOVERY_ABSENCES} o más faltas sin justificar = recuperación. Con el lápiz editas tareas y participación; el proyecto se califica y publica en Equipos.
+      </p>
     </div>
   );
 }

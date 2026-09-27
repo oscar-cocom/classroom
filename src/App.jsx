@@ -10,6 +10,7 @@ import { AttendancePage } from '@/components/pages/AttendancePage';
 import { GradesPage } from '@/components/pages/GradesPage';
 import { StudentsPage } from '@/components/pages/StudentsPage';
 import { FollowUpPage } from '@/components/pages/FollowUpPage';
+import { UpdateBanner } from '@/components/molecules/UpdateBanner';
 
 // Teacher-only pages: students who type the URL get sent to their own grades
 function TeacherOnly({ children }) {
@@ -40,6 +41,7 @@ function App() {
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </Router>
+      <UpdateBanner />
     </AuthProvider>
   );
 }

@@ -1,10 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
 import { evaluateStudentTasks } from '@/services/githubApi';
 
-export function StudentStatusRow({ student, score, onScoreChange, tasksList = [], currentSprint = 1 }) {
-  const [taskStatus, setTaskStatus] = useState({ loading: true, error: false, totalScore: 0, sprintScores: {}, commitTime: null });
+export function StudentStatusRow({ student, score, projectScore = null, onScoreChange, tasksList = [], currentSprint = 1, disabled = false }) {
+  const [taskStatus, setTaskStatus] = useState({ loading: true, error: false, tasks: {} });
 
   useEffect(() => {
     let mounted = true;
@@ -14,40 +13,36 @@ export function StudentStatusRow({ student, score, onScoreChange, tasksList = []
       
       try {
         const result = await evaluateStudentTasks(student.repoName, tasksList);
-        
         if (mounted) {
-          // Find the latest delivery date among tasks for THIS sprint
-          const sprintTasks = Object.values(result.tasks).filter(t => t.taskInfo.sprint === currentSprint);
-          const latestCommit = sprintTasks
-            .map(t => t.delivery.date)
-            .filter(d => d)
-            .sort((a, b) => b - a)[0] || null;
-
-          setTaskStatus({
-            loading: false,
-            error: result.error,
-            repoMissing: result.repoMissing,
-            totalScore: result.totalScore,
-            sprintScores: result.sprintScores,
-            commitTime: latestCommit
-          });
+          setTaskStatus({ loading: false, error: result.error, repoMissing: result.repoMissing, tasks: result.tasks });
         }
-      } catch (err) {
+      } catch {
         if (mounted) {
-          setTaskStatus({ loading: false, error: true });
+          setTaskStatus({ loading: false, error: true, tasks: {} });
         }
       }
     }
     checkGithub();
     return () => { mounted = false; };
-  }, [student.repoName, currentSprint, tasksList]);
+  }, [student.repoName, tasksList]);
+
+  // Task points of the selected sprint on the same scale as the grades page (out of 40)
+  const sprintTasks = Object.values(taskStatus.tasks).filter(t => Number(t.taskInfo.sprint) === Number(currentSprint));
+  const sprintMax = tasksList
+    .filter(t => Number(t.sprint) === Number(currentSprint))
+    .reduce((sum, t) => sum + Number(t.maxScore), 0);
+  const sprintPoints = sprintMax > 0
+    ? Math.round((sprintTasks.reduce((sum, t) => sum + t.score, 0) / sprintMax) * 400) / 10
+    : null;
+  const commitTime = sprintTasks
+    .map(t => t.delivery.date)
+    .filter(Boolean)
+    .sort((a, b) => b - a)[0] || null;
 
   const formatDate = (dateObj) => {
     if (!dateObj) return "Sin entrega";
     return dateObj.toLocaleString('es-MX');
   };
-
-  const sprintScore = taskStatus.sprintScores[currentSprint] || 0;
 
   return (
     <div className="flex flex-col md:flex-row md:items-center justify-between p-4 border rounded-lg gap-4 bg-card text-card-foreground">
@@ -55,7 +50,7 @@ export function StudentStatusRow({ student, score, onScoreChange, tasksList = []
         <h4 className="font-semibold">{student.name}</h4>
         <p className="text-sm text-muted-foreground">{student.githubUsername} | {student.repoName}</p>
         <div className="mt-2 text-xs text-muted-foreground">
-          Último commit: {taskStatus.loading ? "Cargando..." : formatDate(taskStatus.commitTime)}
+          Último commit: {taskStatus.loading ? "Cargando..." : formatDate(commitTime)}
         </div>
       </div>
       
@@ -68,22 +63,29 @@ export function StudentStatusRow({ student, score, onScoreChange, tasksList = []
           <Badge variant="destructive">Error repo</Badge>
         ) : (
           <Badge variant="default" className="bg-primary/20 text-primary hover:bg-primary/30 border-0">
-            Tareas Sprint {currentSprint}: {sprintScore} pts
+            Tareas Sprint {currentSprint}: {sprintPoints === null ? '—' : `${sprintPoints} / 40 pts`}
           </Badge>
         )}
       </div>
 
-      <div className="flex items-center gap-2 min-w-[120px]">
-        <span className="text-sm">Expo:</span>
-        <select 
-          className="p-1 border rounded w-full bg-background text-foreground"
-          value={score || 0} 
-          onChange={(e) => onScoreChange(student.id, parseInt(e.target.value))}
-        >
-          {[0,1,2,3,4,5,6,7,8,9,10].map(n => (
-            <option key={n} value={n}>{n} pts</option>
-          ))}
-        </select>
+      <div className="flex flex-col gap-1 min-w-[140px]">
+        <label className="flex items-center gap-2 text-sm">
+          Expo:
+          <select 
+            className="p-1 border rounded w-full bg-background text-foreground cursor-pointer disabled:cursor-not-allowed"
+            value={score ?? ''} 
+            disabled={disabled}
+            onChange={(e) => onScoreChange(student.id, parseInt(e.target.value))}
+          >
+            <option value="" disabled>Sin calificar</option>
+            {[0,1,2,3,4,5,6,7,8,9,10].map(n => (
+              <option key={n} value={n}>{n} / 10 → {n * 5} pts</option>
+            ))}
+          </select>
+        </label>
+        {projectScore !== null && (
+          <span className="text-xs text-muted-foreground">Proyecto: <b className="text-foreground">{Math.round(projectScore * 5) / 10} / 50 pts</b></span>
+        )}
       </div>
     </div>
   );

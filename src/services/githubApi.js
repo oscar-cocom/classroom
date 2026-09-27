@@ -50,6 +50,13 @@ function getBlobText(repoName, sha) {
 
 const isCodeFile = path => path.endsWith(".html") || path.endsWith(".js");
 
+// Sprint 2+ work lives in a `sprint-N/` folder; Sprint 1 work is anywhere else.
+// Keeps e.g. an <img> added to a sprint-2 card from counting as a Sprint 1 task.
+function isInSprintFolder(path, sprint) {
+  const folder = path.match(/^sprint-(\d+)\//i);
+  return folder ? Number(folder[1]) === sprint : sprint === 1;
+}
+
 /**
  * Template code files keyed by path: { sha, content }. Loaded once per session.
  * Lets us ignore what every student got for free from the template
@@ -126,7 +133,8 @@ function addedCount(file, needle) {
  * Checks one task against a snapshot.
  * Returns { ratio: share of the task's points (0..1), files: paths that satisfied it }.
  */
-function checkTask(task, files) {
+function checkTask(task, allFiles) {
+  const files = allFiles.filter(f => isInSprintFolder(f.path, Number(task.sprint)));
   if (task.evaluation?.strategy === "custom_form_buttons") {
     const best = files
       .filter(f => addedCount(f, "<form") > 0)
