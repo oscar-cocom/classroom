@@ -1,7 +1,7 @@
 # Publishes to Vercel production on every push to main.
 # The Vercel project belongs to another account than this repo, so Vercel's
 # Git integration can't be used; this deploys with a Vercel token instead.
-# Secrets: VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID
+# Secret: VERCEL_TOKEN (the ids below are not secret)
 name: Deploy to Vercel
 
 on:
@@ -17,8 +17,8 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     env:
-      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      VERCEL_ORG_ID: team_8kHvKRoueDaTPQopxqinGp2v
+      VERCEL_PROJECT_ID: prj_ia7tU928FrRCmqM0aiYmDh5HPvhB
     steps:
       - uses: actions/checkout@v4
       # Vercel builds remotely with the project's own environment variables
