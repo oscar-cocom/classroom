@@ -142,7 +142,9 @@ export function StudentDashboardPage() {
     return <Badge variant="destructive">Sin entregar</Badge>;
   };
 
-  const renderTaskStatus = (t) => (t.partial
+  const renderTaskStatus = (t) => (taskManual
+    ? <Badge className="bg-blue-600 hover:bg-blue-600">Revisado por el profesor</Badge>
+    : t.partial
     ? <Badge variant="secondary">Parcial</Badge>
     : !t.completed && new Date(t.taskInfo.deadline) > new Date()
       ? <Badge variant="outline">Aún no vence</Badge>
@@ -304,19 +306,24 @@ export function StudentDashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold mb-3">{fmt(points.task)} <span className="text-lg text-muted-foreground font-medium">/ 40 pts</span></div>
-            <ul className="text-sm space-y-1 mb-3">
-              {sprintResults.map(t => (
-                <li key={t.taskInfo.id} className="flex justify-between gap-2">
-                  <span className="text-muted-foreground">{t.taskInfo.name.split(':')[0]}</span>
-                  <span className="font-medium whitespace-nowrap">{t.score} / {t.taskInfo.maxScore}</span>
-                </li>
-              ))}
-            </ul>
+            {!taskManual && (
+              <ul className="text-sm space-y-1 mb-3">
+                {sprintResults.map(t => (
+                  <li key={t.taskInfo.id} className="flex justify-between gap-2">
+                    <span className="text-muted-foreground">{t.taskInfo.name.split(':')[0]}</span>
+                    <span className="font-medium whitespace-nowrap">{t.score} / {t.taskInfo.maxScore}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
             {tasksFailed && !taskManual && (
               <p className="text-xs text-destructive mb-2">No pudimos revisar todas tus tareas en GitHub. Recarga la página en un momento.</p>
             )}
             {taskManual && (
-              <p className="text-xs text-amber-700 mb-2">Calificación de tareas ajustada por el profesor.</p>
+              <div className="mb-3 rounded-md bg-blue-50 p-2 text-xs text-blue-900">
+                <p className="font-semibold">Revisado por el profesor</p>
+                {saved?.taskReason && <p className="mt-0.5">{saved.taskReason}</p>}
+              </div>
             )}
             {taskPercent !== null && (
               <p className="text-xs text-muted-foreground border-t pt-2">
@@ -440,14 +447,16 @@ export function StudentDashboardPage() {
                       <li key={t.taskInfo.id} className="p-4 space-y-2">
                         <div className="flex items-start justify-between gap-3">
                           <p className="font-medium">{t.taskInfo.name}</p>
-                          <p className="font-bold whitespace-nowrap">
-                            {t.score} <span className="text-muted-foreground font-normal">/ {t.taskInfo.maxScore}</span>
-                          </p>
+                          {!taskManual && (
+                            <p className="font-bold whitespace-nowrap">
+                              {t.score} <span className="text-muted-foreground font-normal">/ {t.taskInfo.maxScore}</span>
+                            </p>
+                          )}
                         </div>
                         <p className="text-sm text-muted-foreground">{t.taskInfo.requirement}</p>
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           {renderTaskStatus(t)}
-                          <span className="font-mono text-xs text-muted-foreground">{formatDate(t.delivery.date)}</span>
+                          {!taskManual && <span className="font-mono text-xs text-muted-foreground">{formatDate(t.delivery.date)}</span>}
                         </div>
                       </li>
                     ))}
@@ -468,20 +477,23 @@ export function StudentDashboardPage() {
                           <td className="px-6 py-4 font-medium">{t.taskInfo.name}</td>
                           <td className="px-6 py-4 text-muted-foreground">{t.taskInfo.requirement}</td>
                           <td className="px-6 py-4 text-center font-mono text-xs">
-                            {formatDate(t.delivery.date)}
+                            {taskManual ? '—' : formatDate(t.delivery.date)}
                           </td>
                           <td className="px-6 py-4 text-center">{renderTaskStatus(t)}</td>
                           <td className="px-6 py-4 text-center font-bold whitespace-nowrap">
-                            {t.score} <span className="text-muted-foreground font-normal">/ {t.taskInfo.maxScore}</span>
+                            {taskManual ? '—' : <>{t.score} <span className="text-muted-foreground font-normal">/ {t.taskInfo.maxScore}</span></>}
                           </td>
                         </tr>
                       ))}
                     </tbody>
                   </Table>
-                  <div className="p-4 bg-muted/20 border-t flex justify-end gap-4 items-center">
+                  <div className="p-4 bg-muted/20 border-t flex flex-wrap justify-end gap-x-4 gap-y-1 items-center">
+                    {taskManual && <span className="mr-auto text-xs text-blue-900">Revisado por el profesor{saved?.taskReason ? `: ${saved.taskReason}` : ''}</span>}
                     <span className="text-sm text-muted-foreground">Total Sprint {sprint}:</span>
                     <span className="text-2xl font-bold text-primary">
-                      {tasks.reduce((sum, t) => sum + t.score, 0)} / {tasks.reduce((sum, t) => sum + t.taskInfo.maxScore, 0)}
+                      {taskManual
+                        ? Math.round(saved.taskScore * tasks.reduce((sum, t) => sum + t.taskInfo.maxScore, 0) / 10) / 10
+                        : tasks.reduce((sum, t) => sum + t.score, 0)} / {tasks.reduce((sum, t) => sum + t.taskInfo.maxScore, 0)}
                     </span>
                   </div>
                 </CardContent>

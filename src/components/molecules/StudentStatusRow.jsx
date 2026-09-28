@@ -4,7 +4,7 @@ import { evaluateStudentTasks } from '@/services/githubApi';
 
 const PARTICIPATION_OPTIONS = [5, 4.5, 4, 3.5, 3, 2.5, 2, 1.5, 1, 0.5, 0];
 
-export function StudentStatusRow({ student, score, projectScore = null, onScoreChange, participation, onParticipationChange, tasksList = [], currentSprint = 1, disabled = false }) {
+export function StudentStatusRow({ student, score, projectScore = null, onScoreChange, participation, onParticipationChange, manualTaskScore = null, tasksList = [], currentSprint = 1, disabled = false }) {
   const [taskStatus, setTaskStatus] = useState({ loading: true, error: false, tasks: {} });
 
   useEffect(() => {
@@ -52,12 +52,17 @@ export function StudentStatusRow({ student, score, projectScore = null, onScoreC
         <h4 className="font-semibold">{student.name}</h4>
         <p className="text-sm text-muted-foreground">{student.githubUsername} | {student.repoName}</p>
         <div className="mt-2 text-xs text-muted-foreground">
-          Último commit: {taskStatus.loading ? "Cargando..." : formatDate(commitTime)}
+          Último commit: {manualTaskScore !== null ? 'revisado por el profesor' : taskStatus.loading ? "Cargando..." : formatDate(commitTime)}
         </div>
       </div>
       
       <div className="flex items-center gap-2">
-        {taskStatus.loading ? (
+        {manualTaskScore !== null ? (
+          // Graded by hand on the grades page: that grade wins over the live GitHub check
+          <Badge variant="default" className="bg-blue-100 text-blue-900 hover:bg-blue-100 border-0">
+            Tareas Sprint {currentSprint}: {Math.round(manualTaskScore * 4) / 10} / 40 pts · revisado
+          </Badge>
+        ) : taskStatus.loading ? (
           <Badge variant="outline">Verificando tarea...</Badge>
         ) : taskStatus.repoMissing ? (
           <Badge variant="destructive">Sin repo de tareas</Badge>

@@ -23,19 +23,23 @@ export function TeamEvaluationPage() {
   const [evaluations, setEvaluations] = useState({});
   const [tasksList, setTasksList] = useState([]);
   const [saveState, setSaveState] = useState('loading');
-  // Participation per student and sprint, from their grade docs: { [sprint]: { [studentId]: points } }
+  // From the students' grade docs, per sprint: participation points and task grades the teacher reviewed by hand
   const [participation, setParticipation] = useState({});
+  const [manualTasks, setManualTasks] = useState({});
 
   useEffect(() => {
     getTasks().then(setTasksList);
     getAllGrades()
       .then(all => {
         const bySprint = {};
-        all.filter(g => g.participationPoints !== undefined).forEach(g => {
+        const manual = {};
+        all.forEach(g => {
           const n = Number(String(g.sprint).replace(/\D/g, ''));
-          (bySprint[n] ??= {})[g.studentId] = g.participationPoints;
+          if (g.participationPoints !== undefined) (bySprint[n] ??= {})[g.studentId] = g.participationPoints;
+          if (g.taskManual === true && g.taskScore !== undefined) (manual[n] ??= {})[g.studentId] = g.taskScore;
         });
         setParticipation(bySprint);
+        setManualTasks(manual);
       })
       .catch(err => console.error('Error loading participation:', err));
     getTeamEvaluation(teamId)
@@ -200,6 +204,7 @@ export function TeamEvaluationPage() {
                 projectScore={studentScores[student.id] !== undefined ? projectScore(studentScores[student.id]) : null}
                 onScoreChange={handleScoreChange}
                 participation={participation[sprint]?.[student.id] ?? DEFAULT_PARTICIPATION}
+                manualTaskScore={manualTasks[sprint]?.[student.id] ?? null}
                 onParticipationChange={handleParticipationChange}
                 tasksList={tasksList}
                 currentSprint={sprint}
