@@ -129,12 +129,18 @@ function addedCount(file, needle) {
   return added;
 }
 
+const inFolder = (path, folder) => path.toLowerCase().startsWith(folder.toLowerCase());
+
 /**
  * Checks one task against a snapshot.
+ * A task with `evaluation.folder` only looks inside that folder, and the other
+ * tasks skip it, so e.g. an object written for Task 3 never counts as Task 1.
  * Returns { ratio: share of the task's points (0..1), files: paths that satisfied it }.
  */
-function checkTask(task, allFiles) {
-  const files = allFiles.filter(f => isInSprintFolder(f.path, Number(task.sprint)));
+function checkTask(task, allFiles, taskFolders = []) {
+  const folder = task.evaluation?.folder;
+  const files = allFiles.filter(f => isInSprintFolder(f.path, Number(task.sprint))
+    && (folder ? inFolder(f.path, folder) : !taskFolders.some(tf => inFolder(f.path, tf))));
   if (task.evaluation?.strategy === "custom_form_buttons") {
     const best = files
       .filter(f => addedCount(f, "<form") > 0)
@@ -144,7 +150,8 @@ function checkTask(task, allFiles) {
     return { ratio: best.buttons >= 2 ? 1 : 0.5, files: [best.path] };
   }
 
-  const keywords = (task.evaluation?.keywords || []).map(k => k.toLowerCase());
+  // Matched exactly as typed: "MAYORIA_DE_EDAD" or "esMayorDeEdad" must keep their capitals
+  const keywords = task.evaluation?.keywords || [];
   const matchCount = Number(task.evaluation?.matchCount) || 1;
   const matchedFiles = new Set();
   let matches = 0;
@@ -210,6 +217,8 @@ export async function evaluateStudentTasks(repoName, tasksList = []) {
     result.lastStudentCommit = studentWork[0] ? commitDate(studentWork[0]) : null;
     if (!tasksList.length) return result;
 
+    // Folders that belong to a single task (see checkTask)
+    const taskFolders = tasksList.map(t => t.evaluation?.folder).filter(Boolean);
     const templateFiles = await getTemplateFiles();
     const snapshots = new Map();
     const filesAt = sha => {
@@ -226,11 +235,11 @@ export async function evaluateStudentTasks(repoName, tasksList = []) {
       if (studentWork.length) {
         // Newest first: the first commit at or before the deadline is the code as delivered
         const atDeadline = studentWork.find(c => commitDate(c) <= deadline);
-        const onTime = atDeadline ? checkTask(task, await filesAt(atDeadline.sha)) : { ratio: 0 };
+        const onTime = atDeadline ? checkTask(task, await filesAt(atDeadline.sha), taskFolders) : { ratio: 0 };
         // Work pushed after the deadline counts at 80%; keep it only if it beats what was on time
         // (e.g. 1 button on time = 50%, both buttons late = 80%)
         const late = commitDate(studentWork[0]) > deadline
-          ? checkTask(task, await filesAt(studentWork[0].sha))
+          ? checkTask(task, await filesAt(studentWork[0].sha), taskFolders)
           : { ratio: 0 };
 
         if (late.ratio * 0.8 > onTime.ratio) {

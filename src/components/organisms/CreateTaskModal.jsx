@@ -64,6 +64,8 @@ export function CreateTaskModal({ isOpen, onClose, onTaskCreated, editingTask })
       maxScore: parseInt(formData.maxScore),
       template: formData.template,
       evaluation: customEvaluation || {
+        // Keeps settings this form does not show, such as the task's own folder
+        ...editingTask?.evaluation,
         strategy: "keyword",
         keywords: formData.keywords.split(',').map(k => k.trim()).filter(k => k),
         matchCount: parseInt(formData.matchCount)
