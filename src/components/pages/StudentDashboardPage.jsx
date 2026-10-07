@@ -121,13 +121,18 @@ export function StudentDashboardPage() {
   };
   const fmt = n => (n === null ? '-' : String(n));
 
+  // A total the teacher set by hand on the grades page (e.g. the one captured in the SIE)
+  // replaces the sum and cancels recovery
+  const finalOverride = typeof saved?.finalOverride === 'number' ? saved.finalOverride : null;
   // Too many unexcused absences: the sprint goes to recovery instead of an ordinary grade
-  const isFailedByAbsences = absences >= RECOVERY_ABSENCES;
-  
+  const isFailedByAbsences = absences >= RECOVERY_ABSENCES && finalOverride === null;
+
   let finalGradeDisplay = '-';
   let partialNote = null;
   if (isFailedByAbsences) {
     finalGradeDisplay = "Recuperación";
+  } else if (finalOverride !== null) {
+    finalGradeDisplay = fmt(finalOverride);
   } else if (points.task !== null) {
     finalGradeDisplay = fmt(round1(points.task + (points.project ?? 0) + points.attendance + points.participation));
     // Until the demo, the grade only has tasks + participation
@@ -252,7 +257,9 @@ export function StudentDashboardPage() {
             </div>
             {!isFailedByAbsences && (
               <p className="text-xs text-muted-foreground mt-1">
-                Tareas {fmt(points.task)} + Proyecto {fmt(points.project)} + Asistencia {fmt(points.attendance)} + Participación {fmt(points.participation)}
+                {finalOverride !== null
+                  ? 'Calificación ajustada por el profesor'
+                  : <>Tareas {fmt(points.task)} + Proyecto {fmt(points.project)} + Asistencia {fmt(points.attendance)} + Participación {fmt(points.participation)}</>}
               </p>
             )}
             {partialNote && (

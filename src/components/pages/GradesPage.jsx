@@ -32,7 +32,7 @@ export function GradesPage() {
   // Search and edit state
   const [searchTerm, setSearchTerm] = useState("");
   const [editingId, setEditingId] = useState(null);
-  const [temp, setTemp] = useState({ task: 0, participation: DEFAULT_PARTICIPATION });
+  const [temp, setTemp] = useState({ task: 0, participation: DEFAULT_PARTICIPATION, final: '' });
 
   const sprintLabel = `Sprint ${sprint}`;
 
@@ -125,7 +125,7 @@ export function GradesPage() {
 
   const handleEditClick = (studentId, row) => {
     setEditingId(studentId);
-    setTemp({ task: row.task ?? 0, participation: row.participation });
+    setTemp({ task: row.task ?? 0, participation: row.participation, final: row.finalOverride ?? '' });
   };
 
   const handleSaveClick = async (studentId, row) => {
@@ -135,6 +135,9 @@ export function GradesPage() {
       // The student's dashboard shows this instead of the live GitHub check
       data.taskManual = true;
     }
+    // Empty box = automatic total again (null clears the stored override)
+    const final = temp.final === '' ? null : temp.final;
+    if (final !== row.finalOverride) data.finalOverride = final;
     try {
       await saveStudentGrades(studentId, sprintLabel, data);
       updateLocalGrade(studentId, data);
@@ -173,11 +176,14 @@ export function GradesPage() {
         attendance: attendancePoints(absenceCount),
         participation: g.participationPoints ?? DEFAULT_PARTICIPATION,
         participationSet: g.participationPoints !== undefined,
-        inRecovery: absenceCount >= RECOVERY_ABSENCES,
+        // Final grade set by hand (e.g. the one captured in the SIE): replaces the sum and cancels recovery
+        finalOverride: typeof g.finalOverride === 'number' ? g.finalOverride : null,
       };
-      row.total = row.task === null ? null : round1(row.task + (row.project ?? 0) + row.attendance + row.participation);
+      row.inRecovery = absenceCount >= RECOVERY_ABSENCES && row.finalOverride === null;
+      row.computedTotal = row.task === null ? null : round1(row.task + (row.project ?? 0) + row.attendance + row.participation);
+      row.total = row.finalOverride ?? row.computedTotal;
       // Tasks and project already graded (attendance always has a value); recovery is shown in red instead
-      row.complete = row.task !== null && row.project !== null && !row.inRecovery;
+      row.complete = row.finalOverride !== null || (row.task !== null && row.project !== null && !row.inRecovery);
       return row;
     });
   const completeCount = rows.filter(r => r.complete).length;
@@ -355,14 +361,28 @@ export function GradesPage() {
                           )}
                         </td>
 
-                        <td className={`px-4 py-4 text-center font-bold ${row.inRecovery ? 'text-red-600' : 'text-primary'}`}>
-                          {row.inRecovery ? 'Recuperación' : row.total === null ? '—' : (
+                        <td className={`px-4 py-4 text-center font-bold ${row.inRecovery && !isEditing ? 'text-red-600' : 'text-primary'}`}>
+                          {isEditing ? (
+                            <div className="flex flex-col items-center gap-1">
+                              <input
+                                type="number" min="0" max="100" step="1"
+                                aria-label={`Calificación final de ${student.name}`}
+                                placeholder="auto"
+                                className="w-16 p-1 border rounded text-center bg-background font-normal"
+                                value={temp.final}
+                                onChange={(e) => setTemp({ ...temp, final: e.target.value === '' ? '' : Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)) })}
+                              />
+                              <span className="text-[10px] font-normal text-muted-foreground">vacío = automática</span>
+                            </div>
+                          ) : row.inRecovery ? 'Recuperación' : row.total === null ? '—' : (
                             <>
                               <span className={`inline-flex items-center gap-1 ${row.complete ? 'text-green-700 dark:text-green-400' : ''}`}>
                                 {row.complete && <CheckCircle2 className="w-4 h-4" aria-label="Completo" />}
                                 {row.total}
                               </span>
-                              {row.project === null && <span className="block text-[10px] font-normal text-muted-foreground">sin proyecto</span>}
+                              {row.finalOverride !== null ? (
+                                <span className="block text-[10px] font-normal text-amber-700" title={`Ajustada a mano · la suma da ${row.computedTotal ?? '—'}`}>ajustada</span>
+                              ) : row.project === null && <span className="block text-[10px] font-normal text-muted-foreground">sin proyecto</span>}
                             </>
                           )}
                         </td>
@@ -395,7 +415,7 @@ export function GradesPage() {
         </CardContent>
       </Card>
       <p className="text-xs text-muted-foreground">
-        Asistencia: 0–1 faltas = 5 · 2 faltas = 2.5 · 3 = 0 · {RECOVERY_ABSENCES} o más faltas sin justificar = recuperación. La participación está en 0 hasta calificar la demo del equipo (en Equipos, junto a la expo, o con el lápiz). El proyecto se califica y publica en Equipos.
+        Asistencia: 0–1 faltas = 5 · 2 faltas = 2.5 · 3 = 0 · {RECOVERY_ABSENCES} o más faltas sin justificar = recuperación. La participación está en 0 hasta calificar la demo del equipo (en Equipos, junto a la expo, o con el lápiz). El proyecto se califica y publica en Equipos. Con el lápiz también puedes fijar el total (por ejemplo, el que capturaste en el SIE): reemplaza la suma y quita la recuperación.
       </p>
     </div>
   );
